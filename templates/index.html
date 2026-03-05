@@ -331,6 +331,7 @@
           renderFollowupSeparator(question, followupNum);
           data.discussion.forEach(renderCard);
           if (data.summary) renderSummary(data.summary);
+          appendSaveBtn();
           currentDiscussion.followups.push({ question, discussion: data.discussion });
           currentDiscussion.summary = data.summary;
           followupInput.value = '';
