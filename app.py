@@ -70,7 +70,7 @@ def call_chatgpt(prompt):
 def call_gemini(prompt):
     try:
         response = gemini_client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-1.5-flash",
             contents=prompt,
             config=genai_types.GenerateContentConfig(max_output_tokens=1000),
         )
