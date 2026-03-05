@@ -108,6 +108,42 @@ Discussions are saved as JSON files in the `discussions/` folder. They are not c
 
 ---
 
+## Model Versions & Maintenance
+
+The AI models used by this app change over time. If a model stops working or produces unexpected results, the model name in `app.py` may need to be updated.
+
+### Current models (as of March 2026)
+
+| Model | Variable in `app.py` |
+|-------|----------------------|
+| Claude | `claude-sonnet-4-20250514` |
+| ChatGPT | `gpt-4o` |
+| Gemini | `gemini-2.5-flash` |
+
+### Known issues and changes
+
+**Gemini model upgrades require extra care.** Newer Gemini models (2.5+) are "thinking" models — they use internal reasoning tokens that count against the `max_output_tokens` budget. This caused responses to be truncated mid-sentence when the token limit was set to 1000. The fix was to:
+1. Disable thinking mode via `ThinkingConfig(thinking_budget=0)` — unnecessary for conversational discussion
+2. Raise `max_output_tokens` to 4000
+
+If you upgrade to a newer Gemini model and see truncated responses again, check whether it is a thinking model and apply the same fix.
+
+**`google-generativeai` is deprecated.** The original `google-generativeai` package has been retired. This app uses the replacement `google-genai` package (`from google import genai`). Do not revert to the old package.
+
+### How to update a model
+
+Open `app.py` and change the model string in the relevant `call_*` function:
+- `call_claude()` — line ~50
+- `call_chatgpt()` — line ~61
+- `call_gemini()` — line ~71
+
+Check each provider's documentation for current model names:
+- Anthropic: https://docs.anthropic.com/en/docs/about-claude/models
+- OpenAI: https://platform.openai.com/docs/models
+- Google: https://ai.google.dev/gemini-api/docs/models
+
+---
+
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you'd like to change.
