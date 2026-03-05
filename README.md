@@ -12,6 +12,10 @@ LLM Discussion lets you pick a topic or question, select which AI models partici
 
 ## Prerequisites
 
+**Comfort level:** This app requires some comfort with the command line. You should be able to open a terminal, run Python commands, install packages with `pip`, and edit a plain text file. You do not need to be a developer, but if you have never used a terminal before, you may want to familiarize yourself with the basics first.
+
+**API accounts:** This app calls three external AI services, each of which requires you to create an account, agree to their terms of service, and generate an API key. Each service charges per use (see [Costs](#costs) below). You will need to set up billing for at least one of them before the app will work.
+
 - Python 3.9 or later
 - `pip`
 - API accounts for:
