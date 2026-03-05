@@ -95,7 +95,10 @@ def call_gemini(prompt):
         response = gemini_client.models.generate_content(
             model="gemini-2.5-flash",
             contents=prompt,
-            config=genai_types.GenerateContentConfig(max_output_tokens=1000),
+            config=genai_types.GenerateContentConfig(
+                max_output_tokens=4000,
+                thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
+            ),
         )
         return response.text
     except Exception as e:
