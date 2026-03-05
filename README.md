@@ -48,7 +48,7 @@ LLM Discussion lets you pick a topic or question, select which AI models partici
 |---------|----------------|
 | Anthropic (Claude) | https://console.anthropic.com → API Keys |
 | OpenAI (ChatGPT) | https://platform.openai.com → API Keys |
-| Google Gemini (`gemini-1.5-flash`) | https://aistudio.google.com → Get API Key |
+| Google Gemini (`gemini-2.5-flash`) | https://aistudio.google.com → Get API Key |
 
 **Note on Gemini billing:** The Gemini API free tier has a quota limit of 0 for `gemini-2.0-flash`. You must enable billing on your Google Cloud project for Gemini calls to succeed. To do this:
 1. Go to https://console.cloud.google.com/billing
