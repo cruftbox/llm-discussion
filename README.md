@@ -149,6 +149,18 @@ Check each provider's documentation for current model names:
 
 ---
 
+## Extending to Other LLMs
+
+The app can be extended to support other LLMs with API access — for example, Grok (xAI), Mistral, Cohere, or any model available through OpenRouter. The code is structured to make this straightforward:
+
+- Each model has a single `call_*` function in `app.py` (e.g. `call_claude`, `call_chatgpt`, `call_gemini`)
+- Models are registered in the `MODEL_DISPATCH` dictionary with a key, display name, and call function
+- The frontend checkboxes are independent of the backend — adding a new model requires a small addition in both `app.py` and `index.html`
+
+**Using an LLM coding agent is recommended for this.** Tools like Claude Code, GitHub Copilot, or ChatGPT can make these changes quickly with minimal effort on your part. Simply describe the model you want to add, paste in the relevant API documentation, and the agent will handle the implementation.
+
+---
+
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you'd like to change.
