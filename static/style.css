@@ -116,7 +116,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 #startBtn { background: #6366f1; color: #fff; }
 #startBtn:hover:not(:disabled) { background: #4f46e5; }
-#saveBtn { background: #334155; color: #e2e8f0; display: none; }
+#saveBtn { background: #334155; color: #e2e8f0; }
 #saveBtn:hover:not(:disabled) { background: #475569; }
 
 .status {
