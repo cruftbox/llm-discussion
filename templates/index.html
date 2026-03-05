@@ -48,16 +48,17 @@
     <div class="status" id="status">
       <div class="spinner"></div>
       <span id="statusText">Starting discussion...</span>
+      <span id="elapsedText" style="margin-left:auto;color:#64748b;font-size:0.82rem;"></span>
     </div>
 
     <div class="discussion-area" id="discussionArea"></div>
 
     <div class="history-panel" id="historyPanel">
-      <div class="history-header" id="historyHeader">
+      <div class="history-header open" id="historyHeader">
         <h3>Saved Discussions</h3>
-        <span class="history-toggle" id="historyToggle">Show</span>
+        <span class="history-toggle" id="historyToggle">Hide</span>
       </div>
-      <div class="history-list" id="historyList"></div>
+      <div class="history-list open" id="historyList"></div>
     </div>
 
     <footer>
@@ -67,6 +68,7 @@
 
   <script>
     let currentDiscussion = null;
+    let elapsedInterval = null;
 
     const startBtn = document.getElementById('startBtn');
     const saveBtn = document.getElementById('saveBtn');
@@ -76,6 +78,7 @@
     const discussionArea = document.getElementById('discussionArea');
     const status = document.getElementById('status');
     const statusText = document.getElementById('statusText');
+    const elapsedText = document.getElementById('elapsedText');
     const historyHeader = document.getElementById('historyHeader');
     const historyList = document.getElementById('historyList');
     const historyToggle = document.getElementById('historyToggle');
@@ -87,10 +90,18 @@
     function showStatus(text) {
       statusText.textContent = text;
       status.classList.add('visible');
+      const start = Date.now();
+      elapsedText.textContent = '0s';
+      clearInterval(elapsedInterval);
+      elapsedInterval = setInterval(() => {
+        elapsedText.textContent = Math.floor((Date.now() - start) / 1000) + 's';
+      }, 1000);
     }
 
     function hideStatus() {
       status.classList.remove('visible');
+      clearInterval(elapsedInterval);
+      elapsedText.textContent = '';
     }
 
     function renderCard(entry) {
@@ -241,8 +252,10 @@
         const res = await fetch(`/history/${encodeURIComponent(filename)}`);
         const data = await res.json();
         discussionArea.innerHTML = '';
-        saveBtn.style.display = 'none';
-        currentDiscussion = null;
+        currentDiscussion = data;
+        saveBtn.style.display = '';
+        saveBtn.textContent = 'Save Discussion';
+        saveBtn.disabled = false;
         topicInput.value = data.topic || '';
         data.discussion.forEach(renderCard);
         if (data.summary) renderSummary(data.summary);
