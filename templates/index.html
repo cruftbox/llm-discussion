@@ -53,6 +53,14 @@
 
     <div class="discussion-area" id="discussionArea"></div>
 
+    <div class="followup-panel" id="followupPanel" style="display:none">
+      <h3>Ask a Follow-up</h3>
+      <textarea id="followupInput" placeholder="Ask a follow-up question..."></textarea>
+      <div class="buttons" style="margin-top:0.75rem">
+        <button id="followupBtn">Ask Follow-up</button>
+      </div>
+    </div>
+
     <div class="history-panel" id="historyPanel">
       <div class="history-header open" id="historyHeader">
         <h3>Saved Discussions</h3>
@@ -82,6 +90,9 @@
     const historyHeader = document.getElementById('historyHeader');
     const historyList = document.getElementById('historyList');
     const historyToggle = document.getElementById('historyToggle');
+    const followupPanel = document.getElementById('followupPanel');
+    const followupInput = document.getElementById('followupInput');
+    const followupBtn = document.getElementById('followupBtn');
 
     function getSelectedModels() {
       return Array.from(document.querySelectorAll('.model-toggles input:checked')).map(cb => cb.value);
@@ -149,6 +160,8 @@
 
       discussionArea.innerHTML = '';
       saveBtn.style.display = 'none';
+      followupPanel.style.display = 'none';
+      followupInput.value = '';
       currentDiscussion = null;
       startBtn.disabled = true;
       showStatus(`Running discussion (${rounds} round${rounds > 1 ? 's' : ''}, ${models.length} model${models.length > 1 ? 's' : ''})...`);
@@ -165,10 +178,11 @@
         if (!res.ok || data.error) {
           showError(data.error || 'An error occurred.');
         } else {
-          currentDiscussion = data;
+          currentDiscussion = { ...data, followups: [], models };
           data.discussion.forEach(renderCard);
           if (data.summary) renderSummary(data.summary);
           saveBtn.style.display = 'inline-block';
+          followupPanel.style.display = '';
         }
       } catch (err) {
         showError(`Network error: ${err.message}`);
@@ -235,7 +249,10 @@
     }
 
     function renderSummary(text) {
+      const existing = document.getElementById('summaryCard');
+      if (existing) existing.remove();
       const card = document.createElement('div');
+      card.id = 'summaryCard';
       card.className = 'card summary-card';
       card.innerHTML = `
         <div class="card-header">
@@ -247,17 +264,73 @@
       card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
+    function renderFollowupSeparator(question, num) {
+      const el = document.createElement('div');
+      el.className = 'followup-separator';
+      el.innerHTML = `<span>Follow-up ${num}: ${escapeHtml(question)}</span>`;
+      discussionArea.appendChild(el);
+    }
+
+    followupBtn.addEventListener('click', async () => {
+      const question = followupInput.value.trim();
+      if (!question || !currentDiscussion) return;
+
+      const rounds = parseInt(roundsSelect.value, 10);
+      followupBtn.disabled = true;
+      showStatus(`Running follow-up ${currentDiscussion.followups.length + 1}...`);
+
+      try {
+        const res = await fetch('/followup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            question,
+            topic: currentDiscussion.topic,
+            discussion: currentDiscussion.discussion,
+            followups: currentDiscussion.followups,
+            models: currentDiscussion.models,
+            rounds,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || data.error) {
+          showError(data.error || 'An error occurred.');
+        } else {
+          const followupNum = currentDiscussion.followups.length + 1;
+          renderFollowupSeparator(question, followupNum);
+          data.discussion.forEach(renderCard);
+          if (data.summary) renderSummary(data.summary);
+          currentDiscussion.followups.push({ question, discussion: data.discussion });
+          currentDiscussion.summary = data.summary;
+          followupInput.value = '';
+        }
+      } catch (err) {
+        showError(`Network error: ${err.message}`);
+      } finally {
+        followupBtn.disabled = false;
+        hideStatus();
+      }
+    });
+
     async function loadHistoryItem(filename) {
       try {
         const res = await fetch(`/history/${encodeURIComponent(filename)}`);
         const data = await res.json();
         discussionArea.innerHTML = '';
-        currentDiscussion = data;
+        currentDiscussion = { ...data, followups: data.followups || [], models: data.models || [] };
         saveBtn.style.display = 'inline-block';
         saveBtn.textContent = 'Save Discussion';
         saveBtn.disabled = false;
+        followupPanel.style.display = data.models?.length ? '' : 'none';
+        followupInput.value = '';
         topicInput.value = data.topic || '';
         data.discussion.forEach(renderCard);
+        (data.followups || []).forEach((fu, i) => {
+          renderFollowupSeparator(fu.question, i + 1);
+          fu.discussion.forEach(renderCard);
+        });
         if (data.summary) renderSummary(data.summary);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } catch (err) {

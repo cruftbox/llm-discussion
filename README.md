@@ -78,7 +78,8 @@ Then open `http://localhost:5000` in your browser.
 4. Click **Start Discussion**
 5. Wait for all responses (typically 30–90 seconds)
 6. A **Summary & Consensus** card will appear at the end with key takeaways
-7. Click **Save Discussion** to store the results locally
+7. Optionally type a follow-up question and click **Ask Follow-up** to continue the discussion — the models will respond with full context of the prior conversation. You can ask multiple follow-ups; each gets fresh round numbering and the summary updates each time
+8. Click **Save Discussion** to store the results locally (follow-ups are included)
 
 ---
 

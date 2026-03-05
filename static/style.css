@@ -246,6 +246,47 @@ footer {
 
 #stopBtn:hover { color: #ef4444; border-color: #ef4444; }
 
+.followup-panel {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.followup-panel h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-bottom: 0.75rem;
+}
+
+.followup-separator {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.5rem 0;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.followup-separator::before,
+.followup-separator::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #334155;
+}
+
+.followup-separator span {
+  color: #94a3b8;
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 600px;
+}
+
 .summary-card {
   border-left-color: #7c3aed;
   background: #1a1a2e;
