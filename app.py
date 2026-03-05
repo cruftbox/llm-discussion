@@ -259,14 +259,14 @@ def discuss():
         "discussion": discussion,
         "summary": summary,
         "topic": topic,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(datetime.UTC).isoformat(),
     })
 
 
 @app.route("/save", methods=["POST"])
 def save():
     data = request.get_json()
-    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(datetime.UTC).strftime("%Y%m%d_%H%M%S")
     filename = f"discussion_{timestamp}.json"
     filepath = os.path.join(DISCUSSIONS_DIR, filename)
     with open(filepath, "w", encoding="utf-8") as f:
