@@ -1,7 +1,7 @@
 import os
 import json
 import signal
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Flask, request, jsonify, render_template
 import anthropic
 import openai
@@ -259,14 +259,14 @@ def discuss():
         "discussion": discussion,
         "summary": summary,
         "topic": topic,
-        "timestamp": datetime.now(datetime.UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     })
 
 
 @app.route("/save", methods=["POST"])
 def save():
     data = request.get_json()
-    timestamp = datetime.now(datetime.UTC).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     filename = f"discussion_{timestamp}.json"
     filepath = os.path.join(DISCUSSIONS_DIR, filename)
     with open(filepath, "w", encoding="utf-8") as f:
