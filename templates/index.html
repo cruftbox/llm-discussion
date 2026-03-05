@@ -168,7 +168,7 @@
           currentDiscussion = data;
           data.discussion.forEach(renderCard);
           if (data.summary) renderSummary(data.summary);
-          saveBtn.style.display = '';
+          saveBtn.style.display = 'inline-block';
         }
       } catch (err) {
         showError(`Network error: ${err.message}`);
@@ -253,7 +253,7 @@
         const data = await res.json();
         discussionArea.innerHTML = '';
         currentDiscussion = data;
-        saveBtn.style.display = '';
+        saveBtn.style.display = 'inline-block';
         saveBtn.textContent = 'Save Discussion';
         saveBtn.disabled = false;
         topicInput.value = data.topic || '';
