@@ -1,0 +1,6 @@
+config.py
+discussions/
+__pycache__/
+*.pyc
+.env
+venv/

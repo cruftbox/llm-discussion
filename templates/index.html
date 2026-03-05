@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LLM Discussion</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>LLM Discussion</h1>
+      <p>Pose a question. Let Claude, ChatGPT, and Gemini discuss it.</p>
+    </header>
+
+    <div class="input-panel">
+      <textarea id="topicInput" placeholder="Enter a topic or question..."></textarea>
+
+      <div class="controls">
+        <div class="control-group">
+          <label for="roundsSelect">Rounds:</label>
+          <select id="roundsSelect">
+            <option value="1">1</option>
+            <option value="2" selected>2</option>
+            <option value="3">3</option>
+          </select>
+        </div>
+
+        <div class="model-toggles">
+          <label class="model-toggle">
+            <input type="checkbox" value="claude" checked /> Claude
+          </label>
+          <label class="model-toggle">
+            <input type="checkbox" value="chatgpt" checked /> ChatGPT
+          </label>
+          <label class="model-toggle">
+            <input type="checkbox" value="gemini" checked /> Gemini
+          </label>
+        </div>
+      </div>
+
+      <div class="buttons">
+        <button id="startBtn">Start Discussion</button>
+        <button id="saveBtn">Save Discussion</button>
+      </div>
+    </div>
+
+    <div class="status" id="status">
+      <div class="spinner"></div>
+      <span id="statusText">Starting discussion...</span>
+    </div>
+
+    <div class="discussion-area" id="discussionArea"></div>
+
+    <div class="history-panel" id="historyPanel">
+      <div class="history-header" id="historyHeader">
+        <h3>Saved Discussions</h3>
+        <span class="history-toggle" id="historyToggle">Show</span>
+      </div>
+      <div class="history-list" id="historyList"></div>
+    </div>
+
+    <footer>
+      <button id="stopBtn">Stop Server</button>
+    </footer>
+  </div>
+
+  <script>
+    let currentDiscussion = null;
+
+    const startBtn = document.getElementById('startBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const topicInput = document.getElementById('topicInput');
+    const roundsSelect = document.getElementById('roundsSelect');
+    const discussionArea = document.getElementById('discussionArea');
+    const status = document.getElementById('status');
+    const statusText = document.getElementById('statusText');
+    const historyHeader = document.getElementById('historyHeader');
+    const historyList = document.getElementById('historyList');
+    const historyToggle = document.getElementById('historyToggle');
+
+    function getSelectedModels() {
+      return Array.from(document.querySelectorAll('.model-toggles input:checked')).map(cb => cb.value);
+    }
+
+    function showStatus(text) {
+      statusText.textContent = text;
+      status.classList.add('visible');
+    }
+
+    function hideStatus() {
+      status.classList.remove('visible');
+    }
+
+    function renderCard(entry) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.dataset.model = entry.model;
+
+      const roundLabel = entry.round === 0 ? 'Initial Response' : `Round ${entry.round}`;
+
+      card.innerHTML = `
+        <div class="card-header">
+          <span class="badge badge-${entry.model}">${entry.model}</span>
+          <span class="round-label">${roundLabel}</span>
+        </div>
+        <div class="card-text">${escapeHtml(entry.text)}</div>
+      `;
+
+      discussionArea.appendChild(card);
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function showError(msg) {
+      const el = document.createElement('div');
+      el.className = 'error-card';
+      el.textContent = msg;
+      discussionArea.appendChild(el);
+    }
+
+    startBtn.addEventListener('click', async () => {
+      const topic = topicInput.value.trim();
+      if (!topic) { topicInput.focus(); return; }
+
+      const models = getSelectedModels();
+      if (models.length === 0) { alert('Select at least one model.'); return; }
+
+      const rounds = parseInt(roundsSelect.value, 10);
+
+      discussionArea.innerHTML = '';
+      saveBtn.style.display = 'none';
+      currentDiscussion = null;
+      startBtn.disabled = true;
+      showStatus(`Running discussion (${rounds} round${rounds > 1 ? 's' : ''}, ${models.length} model${models.length > 1 ? 's' : ''})...`);
+
+      try {
+        const res = await fetch('/discuss', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ topic, rounds, models }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || data.error) {
+          showError(data.error || 'An error occurred.');
+        } else {
+          currentDiscussion = data;
+          data.discussion.forEach(renderCard);
+          saveBtn.style.display = '';
+        }
+      } catch (err) {
+        showError(`Network error: ${err.message}`);
+      } finally {
+        startBtn.disabled = false;
+        hideStatus();
+      }
+    });
+
+    saveBtn.addEventListener('click', async () => {
+      if (!currentDiscussion) return;
+      saveBtn.disabled = true;
+      try {
+        const res = await fetch('/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(currentDiscussion),
+        });
+        const data = await res.json();
+        if (data.filename) {
+          saveBtn.textContent = 'Saved!';
+          loadHistory();
+          setTimeout(() => { saveBtn.textContent = 'Save Discussion'; saveBtn.disabled = false; }, 2000);
+        }
+      } catch (err) {
+        saveBtn.disabled = false;
+        alert('Save failed: ' + err.message);
+      }
+    });
+
+    stopBtn.addEventListener('click', async () => {
+      if (!confirm('Stop the local server? You\'ll need to relaunch start.bat to use the app again.')) return;
+      await fetch('/stop', { method: 'POST' });
+      document.body.innerHTML = '<div style="text-align:center;padding:4rem;color:#94a3b8;">Server stopped. Close this tab.</div>';
+    });
+
+    // History panel
+    historyHeader.addEventListener('click', () => {
+      const open = historyList.classList.toggle('open');
+      historyHeader.classList.toggle('open', open);
+      historyToggle.textContent = open ? 'Hide' : 'Show';
+    });
+
+    async function loadHistory() {
+      try {
+        const res = await fetch('/history');
+        const items = await res.json();
+        historyList.innerHTML = '';
+        if (items.length === 0) {
+          historyList.innerHTML = '<div style="padding:0.75rem 1.25rem;color:#64748b;font-size:0.85rem;">No saved discussions yet.</div>';
+          return;
+        }
+        items.forEach(item => {
+          const el = document.createElement('div');
+          el.className = 'history-item';
+          const date = item.timestamp ? new Date(item.timestamp).toLocaleString() : '';
+          el.innerHTML = `<div class="h-topic">${escapeHtml(item.topic)}</div><div class="h-date">${date}</div>`;
+          el.addEventListener('click', () => loadHistoryItem(item.filename));
+          historyList.appendChild(el);
+        });
+      } catch (err) {
+        console.error('Failed to load history:', err);
+      }
+    }
+
+    async function loadHistoryItem(filename) {
+      try {
+        const res = await fetch(`/history/${encodeURIComponent(filename)}`);
+        const data = await res.json();
+        discussionArea.innerHTML = '';
+        saveBtn.style.display = 'none';
+        currentDiscussion = null;
+        topicInput.value = data.topic || '';
+        data.discussion.forEach(renderCard);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (err) {
+        alert('Failed to load discussion: ' + err.message);
+      }
+    }
+
+    // Load history on page load
+    loadHistory();
+  </script>
+</body>
+</html>
