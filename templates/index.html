@@ -58,6 +58,11 @@
       <div class="buttons" style="margin-top:0.75rem">
         <button id="followupBtn">Ask Follow-up</button>
       </div>
+      <div class="status" id="followupStatus">
+        <div class="spinner"></div>
+        <span id="followupStatusText">Running follow-up...</span>
+        <span id="followupElapsedText" style="margin-left:auto;color:#64748b;font-size:0.82rem;"></span>
+      </div>
     </div>
 
     <div class="history-panel" id="historyPanel">
@@ -91,6 +96,10 @@
     const followupPanel = document.getElementById('followupPanel');
     const followupInput = document.getElementById('followupInput');
     const followupBtn = document.getElementById('followupBtn');
+    const followupStatus = document.getElementById('followupStatus');
+    const followupStatusText = document.getElementById('followupStatusText');
+    const followupElapsedText = document.getElementById('followupElapsedText');
+    let followupElapsedInterval = null;
 
     function getSelectedModels() {
       return Array.from(document.querySelectorAll('.model-toggles input:checked')).map(cb => cb.value);
@@ -289,7 +298,15 @@
 
       const rounds = parseInt(roundsSelect.value, 10);
       followupBtn.disabled = true;
-      showStatus(`Running follow-up ${currentDiscussion.followups.length + 1}...`);
+      followupStatusText.textContent = `Running follow-up ${currentDiscussion.followups.length + 1}...`;
+      followupElapsedText.textContent = '0s';
+      followupStatus.classList.add('visible');
+      const fuStart = Date.now();
+      clearInterval(followupElapsedInterval);
+      followupElapsedInterval = setInterval(() => {
+        followupElapsedText.textContent = Math.floor((Date.now() - fuStart) / 1000) + 's';
+      }, 1000);
+      followupStatus.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
       try {
         const res = await fetch('/followup', {
@@ -322,7 +339,9 @@
         showError(`Network error: ${err.message}`);
       } finally {
         followupBtn.disabled = false;
-        hideStatus();
+        followupStatus.classList.remove('visible');
+        clearInterval(followupElapsedInterval);
+        followupElapsedText.textContent = '';
       }
     });
 
