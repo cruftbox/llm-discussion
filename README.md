@@ -1,12 +1,12 @@
 # LLM Discussion
 
-A locally-hosted web app that poses a question to Claude, ChatGPT, and Gemini simultaneously, then orchestrates a multi-round discussion between them — displayed in a clean, color-coded browser interface.
+A locally-hosted web app that poses a question to Claude, ChatGPT, and Gemini simultaneously, then orchestrates a multi-round discussion between them — displayed in a clean, color-coded browser interface. After each discussion, Claude generates a summary of key points, areas of consensus, and a synthesized answer.
 
 ---
 
 ## What This Is
 
-LLM Discussion lets you pick a topic or question, select which AI models participate, choose how many discussion rounds to run, and watch the three models respond to each other in real time. Results can be saved locally and revisited via the History panel.
+LLM Discussion lets you pick a topic or question, select which AI models participate, choose how many discussion rounds to run, and watch the three models respond to each other in real time. When the discussion finishes, a summary card highlights consensus and disagreements across the models. Results can be saved locally and revisited via the History panel.
 
 ---
 
@@ -17,7 +17,7 @@ LLM Discussion lets you pick a topic or question, select which AI models partici
 - API accounts for:
   - [Anthropic](https://console.anthropic.com) (Claude)
   - [OpenAI](https://platform.openai.com) (ChatGPT)
-  - [Google AI Studio](https://aistudio.google.com) (Gemini)
+  - [Google AI Studio](https://aistudio.google.com) (Gemini) — requires billing enabled (see note below)
 
 ---
 
@@ -50,6 +50,12 @@ LLM Discussion lets you pick a topic or question, select which AI models partici
 | OpenAI (ChatGPT) | https://platform.openai.com → API Keys |
 | Google Gemini | https://aistudio.google.com → Get API Key |
 
+**Note on Gemini billing:** The Gemini API free tier has a quota limit of 0 for `gemini-2.0-flash`. You must enable billing on your Google Cloud project for Gemini calls to succeed. To do this:
+1. Go to https://console.cloud.google.com/billing
+2. Create or link a billing account to the project associated with your API key
+
+Until billing is enabled, uncheck Gemini in the UI — Claude and ChatGPT will work fine independently.
+
 ---
 
 ## Running the App
@@ -71,7 +77,8 @@ Then open `http://localhost:5000` in your browser.
 3. Check which models you want to include
 4. Click **Start Discussion**
 5. Wait for all responses (typically 30–90 seconds)
-6. Click **Save Discussion** to store the results locally
+6. A **Summary & Consensus** card will appear at the end with key takeaways
+7. Click **Save Discussion** to store the results locally
 
 ---
 

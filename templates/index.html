@@ -156,6 +156,7 @@
         } else {
           currentDiscussion = data;
           data.discussion.forEach(renderCard);
+          if (data.summary) renderSummary(data.summary);
           saveBtn.style.display = '';
         }
       } catch (err) {
@@ -222,6 +223,19 @@
       }
     }
 
+    function renderSummary(text) {
+      const card = document.createElement('div');
+      card.className = 'card summary-card';
+      card.innerHTML = `
+        <div class="card-header">
+          <span class="badge badge-summary">Summary &amp; Consensus</span>
+        </div>
+        <div class="card-text">${escapeHtml(text)}</div>
+      `;
+      discussionArea.appendChild(card);
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
     async function loadHistoryItem(filename) {
       try {
         const res = await fetch(`/history/${encodeURIComponent(filename)}`);
@@ -231,6 +245,7 @@
         currentDiscussion = null;
         topicInput.value = data.topic || '';
         data.discussion.forEach(renderCard);
+        if (data.summary) renderSummary(data.summary);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } catch (err) {
         alert('Failed to load discussion: ' + err.message);

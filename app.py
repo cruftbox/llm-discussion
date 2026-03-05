@@ -5,7 +5,8 @@ from datetime import datetime
 from flask import Flask, request, jsonify, render_template
 import anthropic
 import openai
-import google.generativeai as genai
+from google import genai
+from google.genai import types as genai_types
 import config
 
 app = Flask(__name__)
@@ -13,7 +14,7 @@ app = Flask(__name__)
 # Initialize API clients
 anthropic_client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
 openai_client = openai.OpenAI(api_key=config.OPENAI_API_KEY)
-genai.configure(api_key=config.GEMINI_API_KEY)
+gemini_client = genai.Client(api_key=config.GEMINI_API_KEY)
 
 DISCUSSIONS_DIR = os.path.join(os.path.dirname(__file__), "discussions")
 os.makedirs(DISCUSSIONS_DIR, exist_ok=True)
@@ -68,10 +69,10 @@ def call_chatgpt(prompt):
 
 def call_gemini(prompt):
     try:
-        model = genai.GenerativeModel("gemini-1.5-pro")
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.types.GenerationConfig(max_output_tokens=1000),
+        response = gemini_client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+            config=genai_types.GenerateContentConfig(max_output_tokens=1000),
         )
         return response.text
     except Exception as e:
@@ -83,6 +84,23 @@ MODEL_DISPATCH = {
     "chatgpt": ("ChatGPT", call_chatgpt),
     "gemini": ("Gemini", call_gemini),
 }
+
+
+def build_summary_prompt(topic, history):
+    formatted = ""
+    for entry in history:
+        formatted += f"[{entry['model']} - Round {entry['round']}]\n{entry['text']}\n\n"
+    return (
+        f"The following is a multi-round discussion between Claude, ChatGPT, and Gemini "
+        f"on this topic: \"{topic}\"\n\n"
+        f"{formatted}"
+        "Please provide:\n"
+        "1. A concise summary of the key points raised across the discussion\n"
+        "2. Areas of consensus or agreement between the models\n"
+        "3. Areas of disagreement or differing perspectives\n"
+        "4. A synthesized consensus answer to the original topic, where possible\n\n"
+        "Be direct and concise."
+    )
 
 
 def run_discussion(topic, rounds, models):
@@ -103,7 +121,11 @@ def run_discussion(topic, rounds, models):
             text = call_fn(prompt)
             history.append({"model": model_name, "round": round_num, "text": text})
 
-    return history
+    # Summary
+    summary_prompt = build_summary_prompt(topic, history)
+    summary_text = call_claude(summary_prompt)
+
+    return history, summary_text
 
 
 @app.route("/")
@@ -125,9 +147,10 @@ def discuss():
     if not valid_models:
         return jsonify({"error": "At least one valid model must be selected"}), 400
 
-    discussion = run_discussion(topic, rounds, valid_models)
+    discussion, summary = run_discussion(topic, rounds, valid_models)
     return jsonify({
         "discussion": discussion,
+        "summary": summary,
         "topic": topic,
         "timestamp": datetime.utcnow().isoformat(),
     })

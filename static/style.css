@@ -246,6 +246,13 @@ footer {
 
 #stopBtn:hover { color: #ef4444; border-color: #ef4444; }
 
+.summary-card {
+  border-left-color: #7c3aed;
+  background: #1a1a2e;
+}
+
+.badge-summary { background: #7c3aed; }
+
 .error-card {
   background: #2d1b1b;
   border: 1px solid #7f1d1d;
