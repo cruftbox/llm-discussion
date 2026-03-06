@@ -29,7 +29,7 @@ LLM Discussion lets you pick a topic or question, select which AI models partici
 
 1. **Clone the repo**
    ```
-   git clone https://github.com/yourusername/llm-discussion.git
+   git clone https://github.com/cruftbox/llm-discussion.git
    cd llm-discussion
    ```
 
@@ -54,7 +54,7 @@ LLM Discussion lets you pick a topic or question, select which AI models partici
 | OpenAI (ChatGPT) | https://platform.openai.com → API Keys |
 | Google Gemini (`gemini-2.5-flash`, thinking disabled) | https://aistudio.google.com → Get API Key |
 
-**Note on Gemini billing:** The Gemini API free tier has a quota limit of 0 for `gemini-2.0-flash`. You must enable billing on your Google Cloud project for Gemini calls to succeed. To do this:
+**Note on Gemini billing:** The Gemini API free tier has a quota limit of 0 for `gemini-2.5-flash`. You must enable billing on your Google Cloud project for Gemini calls to succeed. To do this:
 1. Go to https://console.cloud.google.com/billing
 2. Create or link a billing account to the project associated with your API key
 
@@ -64,7 +64,7 @@ Until billing is enabled, uncheck Gemini in the UI — Claude and ChatGPT will w
 
 ## Running the App
 
-**Windows:** Double-click `start.bat`. A minimized terminal window will open running Flask, and your browser will open to `http://localhost:5000` automatically.
+**Windows:** Double-click `start.bat`. A minimized terminal window will open running Flask. The script polls until the server is ready, then opens your browser to `http://localhost:5000` automatically — no more blank page on startup.
 
 **Mac/Linux:**
 ```
@@ -89,11 +89,13 @@ Then open `http://localhost:5000` in your browser.
 
 ## Costs
 
-Each discussion makes multiple API calls (one per model per round, plus initial responses). Approximate costs:
+Each discussion makes multiple API calls (one per model per round, plus initial responses). Approximate costs per discussion:
 
 - 1 round, 3 models: ~$0.05–$0.10
 - 2 rounds, 3 models: ~$0.10–$0.20
 - 3 rounds, 3 models: ~$0.20–$0.40
+
+Each follow-up question adds another set of API calls at roughly the same cost as a 1-round discussion. The summary is regenerated after each follow-up, which adds one additional Claude call.
 
 Costs vary based on response length and current API pricing.
 
@@ -109,7 +111,7 @@ Costs vary based on response length and current API pricing.
 
 ## Saved Discussions
 
-Discussions are saved as JSON files in the `discussions/` folder. They are not committed to git (listed in `.gitignore`). You can view past discussions in the **Saved Discussions** panel in the app.
+Discussions are saved as JSON files in the `discussions/` folder. They are not committed to git (listed in `.gitignore`). Saved files include the full conversation — original discussion, all follow-up questions and responses, and the final summary. You can view and reload past discussions in the **Saved Discussions** panel in the app.
 
 ---
 
