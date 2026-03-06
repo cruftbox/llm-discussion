@@ -22,6 +22,12 @@ os.makedirs(DISCUSSIONS_DIR, exist_ok=True)
 MAX_TOPIC_LENGTH = 2000
 API_TIMEOUT = 60  # seconds per model call
 
+LENGTH_INSTRUCTIONS = {
+    "concise": "\n\nKeep your response concise — 2 to 3 short paragraphs maximum.",
+    "standard": "",
+    "detailed": "\n\nBe thorough and detailed in your response.",
+}
+
 
 def format_history(history):
     return "".join(
@@ -112,13 +118,14 @@ MODEL_DISPATCH = {
 }
 
 
-def run_discussion(topic, rounds, models):
+def run_discussion(topic, rounds, models, response_length="standard"):
     history = []
+    length_instr = LENGTH_INSTRUCTIONS.get(response_length, "")
 
     # Round 0: each model answers independently
     for model_key in models:
         model_name, call_fn = MODEL_DISPATCH[model_key]
-        prompt = build_initial_prompt(topic)
+        prompt = build_initial_prompt(topic) + length_instr
         text = call_fn(prompt)
         history.append({"model": model_name, "round": 0, "text": text})
 
@@ -126,7 +133,7 @@ def run_discussion(topic, rounds, models):
     for round_num in range(1, rounds + 1):
         for model_key in models:
             model_name, call_fn = MODEL_DISPATCH[model_key]
-            prompt = build_followup_prompt(topic, history, model_name)
+            prompt = build_followup_prompt(topic, history, model_name) + length_instr
             text = call_fn(prompt)
             history.append({"model": model_name, "round": round_num, "text": text})
 
@@ -162,19 +169,20 @@ def build_followup_round_prompt(topic, original_history, prior_followups, questi
     )
 
 
-def run_followup(topic, original_history, prior_followups, question, rounds, models):
+def run_followup(topic, original_history, prior_followups, question, rounds, models, response_length="standard"):
     followup_history = []
+    length_instr = LENGTH_INSTRUCTIONS.get(response_length, "")
 
     for model_key in models:
         model_name, call_fn = MODEL_DISPATCH[model_key]
-        prompt = build_followup_initial_prompt(topic, original_history, prior_followups, question, model_name)
+        prompt = build_followup_initial_prompt(topic, original_history, prior_followups, question, model_name) + length_instr
         text = call_fn(prompt)
         followup_history.append({"model": model_name, "round": 0, "text": text})
 
     for round_num in range(1, rounds + 1):
         for model_key in models:
             model_name, call_fn = MODEL_DISPATCH[model_key]
-            prompt = build_followup_round_prompt(topic, original_history, prior_followups, question, followup_history, model_name)
+            prompt = build_followup_round_prompt(topic, original_history, prior_followups, question, followup_history, model_name) + length_instr
             text = call_fn(prompt)
             followup_history.append({"model": model_name, "round": round_num, "text": text})
 
@@ -217,8 +225,9 @@ def followup():
     if not valid_models:
         return jsonify({"error": "At least one valid model must be selected"}), 400
 
+    response_length = data.get("response_length", "standard")
     followup_history, summary = run_followup(
-        topic, original_history, prior_followups, question, rounds, valid_models
+        topic, original_history, prior_followups, question, rounds, valid_models, response_length
     )
 
     return jsonify({
@@ -254,7 +263,8 @@ def discuss():
     if not valid_models:
         return jsonify({"error": "At least one valid model must be selected"}), 400
 
-    discussion, summary = run_discussion(topic, rounds, valid_models)
+    response_length = data.get("response_length", "standard")
+    discussion, summary = run_discussion(topic, rounds, valid_models, response_length)
     return jsonify({
         "discussion": discussion,
         "summary": summary,
