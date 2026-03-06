@@ -78,12 +78,16 @@ Then open `http://localhost:5000` in your browser.
 
 1. Type a topic or question in the text box
 2. Select the number of discussion rounds (1–3)
-3. Check which models you want to include
-4. Click **Start Discussion**
-5. Wait for all responses (typically 30–90 seconds)
-6. A **Summary & Consensus** card will appear at the end with key takeaways
-7. Optionally type a follow-up question and click **Ask Follow-up** to continue the discussion — the models will respond with full context of the prior conversation. You can ask multiple follow-ups; each gets fresh round numbering and the summary updates each time
-8. Click **Save Discussion** to store the results locally (follow-ups are included)
+3. Select a **Response length**:
+   - **Concise** — 2 to 3 short paragraphs per model
+   - **Standard** — default, no length constraint
+   - **Detailed** — models are asked to be thorough
+4. Check which models you want to include
+5. Click **Start Discussion**
+6. Wait for all responses (typically 30–90 seconds)
+7. A **Summary & Consensus** card will appear at the end with key takeaways
+8. Optionally type a follow-up question and click **Ask Follow-up** to continue the discussion — the models will respond with full context of the prior conversation. You can ask multiple follow-ups; each gets fresh round numbering and the summary updates each time
+9. Click **Save Discussion** to store the results locally (follow-ups are included)
 
 ---
 
