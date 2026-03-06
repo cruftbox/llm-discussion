@@ -1,12 +1,12 @@
 # LLM Discussion
 
-A locally-hosted web app that poses a question to Claude, ChatGPT, and Gemini simultaneously, then orchestrates a multi-round discussion between them — displayed in a clean, color-coded browser interface. After each discussion, Claude generates a summary of key points, areas of consensus, and a synthesized answer.
+A locally-hosted web app that poses a question to Claude, ChatGPT, and Gemini simultaneously, then orchestrates a multi-round discussion between them — displayed in a clean, color-coded browser interface. You can control response length, ask follow-up questions, and save discussions locally. After each discussion, Claude generates a summary of key points, areas of consensus, and a synthesized answer.
 
 ---
 
 ## What This Is
 
-LLM Discussion lets you pick a topic or question, select which AI models participate, choose how many discussion rounds to run, and watch the three models respond to each other in real time. When the discussion finishes, a summary card highlights consensus and disagreements across the models. Results can be saved locally and revisited via the History panel.
+LLM Discussion lets you pick a topic or question, select which AI models participate, choose how many discussion rounds to run, and control response length (Concise, Standard, or Detailed). Watch the three models respond to each other in real time, ask follow-up questions to dig deeper, and save the full conversation locally. When the discussion finishes, a summary card highlights consensus and disagreements across the models.
 
 ---
 
