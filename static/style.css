@@ -122,7 +122,14 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   margin-bottom: 1rem;
 }
 
-#copyAllBtn { background: #1e3a5f; color: #93c5fd; border: 1px solid #2563eb; }
+#copyAllBtn {
+  background: #1e3a5f;
+  color: #93c5fd;
+  border: 1px solid #2563eb;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
 #copyAllBtn:hover:not(:disabled) { background: #1e40af; }
 #saveAllBtn { background: #334155; color: #e2e8f0; }
 #saveAllBtn:hover:not(:disabled) { background: #475569; }
@@ -326,15 +333,17 @@ footer {
 
 .copy-btn {
   margin-left: auto;
-  padding: 0.15rem 0.6rem;
-  font-size: 0.75rem;
-  font-weight: 500;
+  padding: 0.2rem 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   color: #64748b;
   border: 1px solid #334155;
   border-radius: 5px;
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
+  line-height: 1;
 }
 
 .copy-btn:hover { color: #e2e8f0; border-color: #64748b; }
