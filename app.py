@@ -1,6 +1,8 @@
 import os
 import json
 import signal
+import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify, render_template
 import anthropic
@@ -8,6 +10,8 @@ import openai
 from google import genai
 from google.genai import types as genai_types
 import config
+
+logging.basicConfig(level=logging.ERROR, format="%(asctime)s %(levelname)s %(message)s")
 
 app = Flask(__name__)
 
@@ -80,7 +84,8 @@ def call_claude(prompt):
         )
         return response.content[0].text
     except Exception as e:
-        return f"[Claude error: {str(e)}]"
+        logging.error("Claude API error: %s", e)
+        raise
 
 
 def call_chatgpt(prompt):
@@ -93,7 +98,8 @@ def call_chatgpt(prompt):
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"[ChatGPT error: {str(e)}]"
+        logging.error("ChatGPT API error: %s", e)
+        raise
 
 
 def call_gemini(prompt):
@@ -108,7 +114,26 @@ def call_gemini(prompt):
         )
         return response.text
     except Exception as e:
-        return f"[Gemini error: {str(e)}]"
+        logging.error("Gemini API error: %s", e)
+        raise
+
+
+def _call_models_parallel(models, prompts_by_key, round_num):
+    """Call models concurrently. prompts_by_key maps model_key -> prompt."""
+    results = {}
+    with ThreadPoolExecutor(max_workers=len(models)) as executor:
+        futures = {
+            executor.submit(MODEL_DISPATCH[model_key][1], prompts_by_key[model_key]): model_key
+            for model_key in models
+        }
+        for future in as_completed(futures):
+            model_key = futures[future]
+            model_name = MODEL_DISPATCH[model_key][0]
+            try:
+                results[model_key] = {"model": model_name, "round": round_num, "text": future.result()}
+            except Exception as e:
+                results[model_key] = {"model": model_name, "round": round_num, "text": str(e), "error": True}
+    return results
 
 
 MODEL_DISPATCH = {
@@ -122,24 +147,30 @@ def run_discussion(topic, rounds, models, response_length="standard"):
     history = []
     length_instr = LENGTH_INSTRUCTIONS.get(response_length, "")
 
-    # Round 0: each model answers independently
+    # Round 0: all models called in parallel (independent prompts)
+    initial_prompt = build_initial_prompt(topic) + length_instr
+    results = _call_models_parallel(models, {m: initial_prompt for m in models}, round_num=0)
     for model_key in models:
-        model_name, call_fn = MODEL_DISPATCH[model_key]
-        prompt = build_initial_prompt(topic) + length_instr
-        text = call_fn(prompt)
-        history.append({"model": model_name, "round": 0, "text": text})
+        history.append(results[model_key])
 
-    # Rounds 1+: each model sees prior responses
+    # Rounds 1+: build prompts from snapshot, then call in parallel
     for round_num in range(1, rounds + 1):
+        snapshot = list(history)
+        prompts = {
+            m: build_followup_prompt(topic, snapshot, MODEL_DISPATCH[m][0]) + length_instr
+            for m in models
+        }
+        results = _call_models_parallel(models, prompts, round_num)
         for model_key in models:
-            model_name, call_fn = MODEL_DISPATCH[model_key]
-            prompt = build_followup_prompt(topic, history, model_name) + length_instr
-            text = call_fn(prompt)
-            history.append({"model": model_name, "round": round_num, "text": text})
+            history.append(results[model_key])
 
     # Summary: use Claude if available, otherwise first selected model
     summary_fn = call_claude if "claude" in models else MODEL_DISPATCH[models[0]][1]
-    summary_text = summary_fn(build_summary_prompt(topic, history))
+    try:
+        summary_text = summary_fn(build_summary_prompt(topic, history))
+    except Exception as e:
+        logging.error("Summary generation error: %s", e)
+        summary_text = f"[Summary generation failed: {e}]"
 
     return history, summary_text
 
@@ -173,18 +204,25 @@ def run_followup(topic, original_history, prior_followups, question, rounds, mod
     followup_history = []
     length_instr = LENGTH_INSTRUCTIONS.get(response_length, "")
 
+    # Round 0: all models called in parallel
+    prompts = {
+        m: build_followup_initial_prompt(topic, original_history, prior_followups, question, MODEL_DISPATCH[m][0]) + length_instr
+        for m in models
+    }
+    results = _call_models_parallel(models, prompts, round_num=0)
     for model_key in models:
-        model_name, call_fn = MODEL_DISPATCH[model_key]
-        prompt = build_followup_initial_prompt(topic, original_history, prior_followups, question, model_name) + length_instr
-        text = call_fn(prompt)
-        followup_history.append({"model": model_name, "round": 0, "text": text})
+        followup_history.append(results[model_key])
 
+    # Rounds 1+: build prompts from snapshot, then call in parallel
     for round_num in range(1, rounds + 1):
+        snapshot = list(followup_history)
+        prompts = {
+            m: build_followup_round_prompt(topic, original_history, prior_followups, question, snapshot, MODEL_DISPATCH[m][0]) + length_instr
+            for m in models
+        }
+        results = _call_models_parallel(models, prompts, round_num)
         for model_key in models:
-            model_name, call_fn = MODEL_DISPATCH[model_key]
-            prompt = build_followup_round_prompt(topic, original_history, prior_followups, question, followup_history, model_name) + length_instr
-            text = call_fn(prompt)
-            followup_history.append({"model": model_name, "round": round_num, "text": text})
+            followup_history.append(results[model_key])
 
     # Summary covering the full conversation
     all_history = list(original_history)
@@ -195,7 +233,11 @@ def run_followup(topic, original_history, prior_followups, question, rounds, mod
     all_questions = [fu["question"] for fu in prior_followups] + [question]
     summary_topic = f"{topic} (follow-ups: {'; '.join(all_questions)})"
     summary_fn = call_claude if "claude" in models else MODEL_DISPATCH[models[0]][1]
-    summary_text = summary_fn(build_summary_prompt(summary_topic, all_history))
+    try:
+        summary_text = summary_fn(build_summary_prompt(summary_topic, all_history))
+    except Exception as e:
+        logging.error("Summary generation error: %s", e)
+        summary_text = f"[Summary generation failed: {e}]"
 
     return followup_history, summary_text
 

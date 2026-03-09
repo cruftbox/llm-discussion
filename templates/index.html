@@ -134,21 +134,66 @@
 
     function renderCard(entry) {
       const card = document.createElement('div');
-      card.className = 'card';
+      card.className = 'card' + (entry.error ? ' error-response' : '');
       card.dataset.model = entry.model;
 
       const roundLabel = entry.round === 0 ? 'Initial Response' : `Round ${entry.round}`;
+      const errorBadge = entry.error ? '<span class="error-badge">Error</span>' : '';
 
       card.innerHTML = `
         <div class="card-header">
           <span class="badge badge-${entry.model}">${entry.model}</span>
           <span class="round-label">${roundLabel}</span>
+          ${errorBadge}
+          <button class="copy-btn" title="Copy response">Copy</button>
         </div>
         <div class="card-text">${escapeHtml(entry.text)}</div>
       `;
 
+      card.querySelector('.copy-btn').addEventListener('click', () => {
+        copyToClipboard(entry.text, card.querySelector('.copy-btn'));
+      });
+
       discussionArea.appendChild(card);
       card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function copyToClipboard(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+      });
+    }
+
+    function buildThreadText() {
+      if (!currentDiscussion) return '';
+      const lines = [`Topic: ${currentDiscussion.topic}`, ''];
+
+      const rounds = {};
+      for (const entry of currentDiscussion.discussion) {
+        if (!rounds[entry.round]) rounds[entry.round] = [];
+        rounds[entry.round].push(entry);
+      }
+      for (const roundNum of Object.keys(rounds).map(Number).sort((a, b) => a - b)) {
+        lines.push(`=== ${roundNum === 0 ? 'Initial Responses' : `Round ${roundNum}`} ===`, '');
+        for (const entry of rounds[roundNum]) {
+          lines.push(`[${entry.model}]${entry.error ? ' [ERROR]' : ''}`, entry.text, '');
+        }
+      }
+
+      for (let i = 0; i < (currentDiscussion.followups || []).length; i++) {
+        const fu = currentDiscussion.followups[i];
+        lines.push(`--- Follow-up ${i + 1}: ${fu.question} ---`, '');
+        for (const entry of fu.discussion) {
+          lines.push(`[${entry.model} - Round ${entry.round}]${entry.error ? ' [ERROR]' : ''}`, entry.text, '');
+        }
+      }
+
+      if (currentDiscussion.summary) {
+        lines.push('=== Summary & Consensus ===', '', currentDiscussion.summary);
+      }
+      return lines.join('\n');
     }
 
     function escapeHtml(str) {
@@ -211,13 +256,15 @@
 
     function appendSaveBtn() {
       removeSaveBtn();
-      const btn = document.createElement('button');
-      btn.id = 'saveBtn';
-      btn.textContent = 'Save Discussion';
-      btn.style.marginTop = '0.5rem';
-      btn.addEventListener('click', async () => {
+      const wrap = document.createElement('div');
+      wrap.id = 'saveBtn';
+      wrap.style.cssText = 'display:flex;gap:0.75rem;margin-top:0.5rem;';
+
+      const saveBtn = document.createElement('button');
+      saveBtn.textContent = 'Save Discussion';
+      saveBtn.addEventListener('click', async () => {
         if (!currentDiscussion) return;
-        btn.disabled = true;
+        saveBtn.disabled = true;
         try {
           const res = await fetch('/save', {
             method: 'POST',
@@ -226,17 +273,26 @@
           });
           const data = await res.json();
           if (data.filename) {
-            btn.textContent = 'Saved!';
+            saveBtn.textContent = 'Saved!';
             loadHistory();
-            setTimeout(() => { btn.textContent = 'Save Discussion'; btn.disabled = false; }, 2000);
+            setTimeout(() => { saveBtn.textContent = 'Save Discussion'; saveBtn.disabled = false; }, 2000);
           }
         } catch (err) {
-          btn.disabled = false;
+          saveBtn.disabled = false;
           alert('Save failed: ' + err.message);
         }
       });
-      discussionArea.appendChild(btn);
-      btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+      const copyBtn = document.createElement('button');
+      copyBtn.textContent = 'Copy Thread';
+      copyBtn.addEventListener('click', () => {
+        copyToClipboard(buildThreadText(), copyBtn);
+      });
+
+      wrap.appendChild(saveBtn);
+      wrap.appendChild(copyBtn);
+      discussionArea.appendChild(wrap);
+      wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     function removeSaveBtn() {
@@ -288,9 +344,13 @@
       card.innerHTML = `
         <div class="card-header">
           <span class="badge badge-summary">Summary &amp; Consensus</span>
+          <button class="copy-btn" title="Copy summary">Copy</button>
         </div>
         <div class="card-text">${escapeHtml(text)}</div>
       `;
+      card.querySelector('.copy-btn').addEventListener('click', () => {
+        copyToClipboard(text, card.querySelector('.copy-btn'));
+      });
       discussionArea.appendChild(card);
       card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
