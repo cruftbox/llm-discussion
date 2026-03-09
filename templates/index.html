@@ -59,6 +59,11 @@
       <span id="elapsedText" style="margin-left:auto;color:#64748b;font-size:0.82rem;"></span>
     </div>
 
+    <div class="discussion-actions" id="discussionActions" style="display:none">
+      <button id="copyAllBtn">Copy All Responses</button>
+      <button id="saveAllBtn">Save Discussion</button>
+    </div>
+
     <div class="discussion-area" id="discussionArea"></div>
 
     <div class="followup-panel" id="followupPanel" style="display:none">
@@ -110,6 +115,34 @@
     const followupStatusText = document.getElementById('followupStatusText');
     const followupElapsedText = document.getElementById('followupElapsedText');
     let followupElapsedInterval = null;
+    const discussionActions = document.getElementById('discussionActions');
+    const copyAllBtn = document.getElementById('copyAllBtn');
+    const saveAllBtn = document.getElementById('saveAllBtn');
+
+    copyAllBtn.addEventListener('click', () => {
+      copyToClipboard(buildThreadText(), copyAllBtn);
+    });
+
+    saveAllBtn.addEventListener('click', async () => {
+      if (!currentDiscussion) return;
+      saveAllBtn.disabled = true;
+      try {
+        const res = await fetch('/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(currentDiscussion),
+        });
+        const data = await res.json();
+        if (data.filename) {
+          saveAllBtn.textContent = 'Saved!';
+          loadHistory();
+          setTimeout(() => { saveAllBtn.textContent = 'Save Discussion'; saveAllBtn.disabled = false; }, 2000);
+        }
+      } catch (err) {
+        saveAllBtn.disabled = false;
+        alert('Save failed: ' + err.message);
+      }
+    });
 
     function getSelectedModels() {
       return Array.from(document.querySelectorAll('.model-toggles input:checked')).map(cb => cb.value);
@@ -221,7 +254,7 @@
       const rounds = parseInt(roundsSelect.value, 10);
 
       discussionArea.innerHTML = '';
-      removeSaveBtn();
+      discussionActions.style.display = 'none';
       followupPanel.style.display = 'none';
       followupInput.value = '';
       currentDiscussion = null;
@@ -243,7 +276,8 @@
           currentDiscussion = { ...data, followups: [], models, response_length: lengthSelect.value };
           data.discussion.forEach(renderCard);
           if (data.summary) renderSummary(data.summary);
-          appendSaveBtn();
+          discussionActions.style.display = '';
+          saveAllBtn.textContent = 'Save Discussion';
           followupPanel.style.display = '';
         }
       } catch (err) {
@@ -253,52 +287,6 @@
         hideStatus();
       }
     });
-
-    function appendSaveBtn() {
-      removeSaveBtn();
-      const wrap = document.createElement('div');
-      wrap.id = 'saveBtn';
-      wrap.style.cssText = 'display:flex;gap:0.75rem;margin-top:0.5rem;';
-
-      const saveBtn = document.createElement('button');
-      saveBtn.textContent = 'Save Discussion';
-      saveBtn.addEventListener('click', async () => {
-        if (!currentDiscussion) return;
-        saveBtn.disabled = true;
-        try {
-          const res = await fetch('/save', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(currentDiscussion),
-          });
-          const data = await res.json();
-          if (data.filename) {
-            saveBtn.textContent = 'Saved!';
-            loadHistory();
-            setTimeout(() => { saveBtn.textContent = 'Save Discussion'; saveBtn.disabled = false; }, 2000);
-          }
-        } catch (err) {
-          saveBtn.disabled = false;
-          alert('Save failed: ' + err.message);
-        }
-      });
-
-      const copyBtn = document.createElement('button');
-      copyBtn.textContent = 'Copy Thread';
-      copyBtn.addEventListener('click', () => {
-        copyToClipboard(buildThreadText(), copyBtn);
-      });
-
-      wrap.appendChild(saveBtn);
-      wrap.appendChild(copyBtn);
-      discussionArea.appendChild(wrap);
-      wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-
-    function removeSaveBtn() {
-      const existing = document.getElementById('saveBtn');
-      if (existing) existing.remove();
-    }
 
     stopBtn.addEventListener('click', async () => {
       if (!confirm('Stop the local server? You\'ll need to relaunch start.bat to use the app again.')) return;
@@ -402,7 +390,8 @@
           renderFollowupSeparator(question, followupNum);
           data.discussion.forEach(renderCard);
           if (data.summary) renderSummary(data.summary);
-          appendSaveBtn();
+          discussionActions.style.display = '';
+          saveAllBtn.textContent = 'Save Discussion';
           currentDiscussion.followups.push({ question, discussion: data.discussion });
           currentDiscussion.summary = data.summary;
           followupInput.value = '';
@@ -432,7 +421,8 @@
           fu.discussion.forEach(renderCard);
         });
         if (data.summary) renderSummary(data.summary);
-        appendSaveBtn();
+        discussionActions.style.display = '';
+        saveAllBtn.textContent = 'Save Discussion';
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } catch (err) {
         alert('Failed to load discussion: ' + err.message);
