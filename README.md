@@ -88,7 +88,8 @@ Then open `http://localhost:5000` in your browser.
 7. Wait for all responses (typically 30–90 seconds)
 8. A **Summary & Consensus** card will appear at the end with key takeaways
 9. Optionally type a follow-up question and click **Ask Follow-up** to continue the discussion — the models will respond with full context of the prior conversation. You can also attach a new image or PDF to a follow-up (click the button or drag and drop onto the follow-up panel). You can ask multiple follow-ups; each gets fresh round numbering and the summary updates each time
-10. Click **Save Discussion** to store the results locally (follow-ups are included)
+10. Click **Save Discussion** to store the results locally (follow-ups are included) — a Save button also appears at the bottom of the Summary & Consensus card
+11. Click **+ New Discussion** (below the follow-up panel) to clear everything and start fresh
 
 ---
 

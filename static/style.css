@@ -409,3 +409,36 @@ footer {
 }
 
 .clear-attach-btn:hover { color: #fff; }
+
+.new-discussion-panel {
+  margin-bottom: 1.5rem;
+}
+
+#newDiscussionBtn {
+  background: #1e293b;
+  color: #94a3b8;
+  border: 1px solid #334155;
+  width: 100%;
+  padding: 0.6rem;
+  font-size: 0.9rem;
+  border-radius: 8px;
+}
+
+#newDiscussionBtn:hover { background: #0f172a; color: #e2e8f0; border-color: #475569; }
+
+.summary-footer {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #2d2a4a;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.summary-save-btn {
+  background: #334155;
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  padding: 0.4rem 1rem;
+}
+
+.summary-save-btn:hover:not(:disabled) { background: #475569; }

@@ -98,6 +98,10 @@
       </div>
     </div>
 
+    <div class="new-discussion-panel" id="newDiscussionPanel" style="display:none">
+      <button id="newDiscussionBtn">+ New Discussion</button>
+    </div>
+
     <div class="history-panel" id="historyPanel">
       <div class="history-header open" id="historyHeader">
         <h3>Saved Discussions</h3>
@@ -139,6 +143,8 @@
     const discussionActions = document.getElementById('discussionActions');
     const copyAllBtn = document.getElementById('copyAllBtn');
     const saveAllBtn = document.getElementById('saveAllBtn');
+    const newDiscussionPanel = document.getElementById('newDiscussionPanel');
+    const newDiscussionBtn = document.getElementById('newDiscussionBtn');
 
     const attachmentInput = document.getElementById('attachmentInput');
     const attachBtn = document.getElementById('attachBtn');
@@ -279,9 +285,10 @@
       copyToClipboard(buildThreadText(), copyAllBtn);
     });
 
-    saveAllBtn.addEventListener('click', async () => {
+    async function saveDiscussion(btn) {
       if (!currentDiscussion) return;
-      saveAllBtn.disabled = true;
+      const origText = btn.textContent;
+      btn.disabled = true;
       try {
         const res = await fetch('/save', {
           method: 'POST',
@@ -290,14 +297,34 @@
         });
         const data = await res.json();
         if (data.filename) {
-          saveAllBtn.textContent = 'Saved!';
+          btn.textContent = 'Saved!';
           loadHistory();
-          setTimeout(() => { saveAllBtn.textContent = 'Save Discussion'; saveAllBtn.disabled = false; }, 2000);
+          setTimeout(() => { btn.textContent = origText; btn.disabled = false; }, 2000);
         }
       } catch (err) {
-        saveAllBtn.disabled = false;
+        btn.disabled = false;
         alert('Save failed: ' + err.message);
       }
+    }
+
+    saveAllBtn.addEventListener('click', () => saveDiscussion(saveAllBtn));
+
+    newDiscussionBtn.addEventListener('click', () => {
+      discussionArea.innerHTML = '';
+      currentDiscussion = null;
+      discussionActions.style.display = 'none';
+      followupPanel.style.display = 'none';
+      newDiscussionPanel.style.display = 'none';
+      topicInput.value = '';
+      attachmentData = null;
+      attachmentInput.value = '';
+      attachmentChip.style.display = 'none';
+      followupInput.value = '';
+      followupAttachmentData = null;
+      followupAttachmentInput.value = '';
+      followupAttachmentChip.style.display = 'none';
+      topicInput.focus();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
     function getSelectedModels() {
@@ -438,6 +465,7 @@
           discussionActions.style.display = '';
           saveAllBtn.textContent = 'Save Discussion';
           followupPanel.style.display = '';
+          newDiscussionPanel.style.display = '';
         }
       } catch (err) {
         showError(`Network error: ${err.message}`);
@@ -494,10 +522,15 @@
           <button class="copy-btn" title="Copy summary">${ICON_COPY}</button>
         </div>
         <div class="card-text">${escapeHtml(text)}</div>
+        <div class="summary-footer">
+          <button class="summary-save-btn">Save Discussion</button>
+        </div>
       `;
       card.querySelector('.copy-btn').addEventListener('click', () => {
         copyToClipboard(text, card.querySelector('.copy-btn'));
       });
+      const summarysaveBtn = card.querySelector('.summary-save-btn');
+      summarysaveBtn.addEventListener('click', () => saveDiscussion(summarysaveBtn));
       discussionArea.appendChild(card);
       card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
@@ -576,6 +609,7 @@
         discussionArea.innerHTML = '';
         currentDiscussion = { ...data, followups: data.followups || [], models: data.models || [] };
         followupPanel.style.display = data.models?.length ? '' : 'none';
+        newDiscussionPanel.style.display = '';
         followupInput.value = '';
         topicInput.value = data.topic || '';
         data.discussion.forEach(renderCard);
