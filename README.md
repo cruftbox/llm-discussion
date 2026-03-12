@@ -77,17 +77,18 @@ Then open `http://localhost:5000` in your browser.
 ## Usage
 
 1. Type a topic or question in the text box
-2. Select the number of discussion rounds (1–3)
-3. Select a **Response length**:
+2. Optionally click **Attach image or PDF** to include a file with your topic. All three models support images (PNG, JPG, GIF, WEBP) and PDFs natively, except ChatGPT which does not accept PDFs directly — the app extracts the PDF text and prepends it to the prompt automatically
+3. Select the number of discussion rounds (1–3)
+4. Select a **Response length**:
    - **Concise** — 2 to 3 short paragraphs per model
    - **Standard** — default, no length constraint
    - **Detailed** — models are asked to be thorough
-4. Check which models you want to include
-5. Click **Start Discussion**
-6. Wait for all responses (typically 30–90 seconds)
-7. A **Summary & Consensus** card will appear at the end with key takeaways
-8. Optionally type a follow-up question and click **Ask Follow-up** to continue the discussion — the models will respond with full context of the prior conversation. You can ask multiple follow-ups; each gets fresh round numbering and the summary updates each time
-9. Click **Save Discussion** to store the results locally (follow-ups are included)
+5. Check which models you want to include
+6. Click **Start Discussion**
+7. Wait for all responses (typically 30–90 seconds)
+8. A **Summary & Consensus** card will appear at the end with key takeaways
+9. Optionally type a follow-up question and click **Ask Follow-up** to continue the discussion — the models will respond with full context of the prior conversation. You can also attach a new image or PDF to a follow-up. You can ask multiple follow-ups; each gets fresh round numbering and the summary updates each time
+10. Click **Save Discussion** to store the results locally (follow-ups are included)
 
 ---
 
@@ -127,7 +128,7 @@ The AI models used by this app change over time. If a model stops working or pro
 
 | Model | Variable in `app.py` |
 |-------|----------------------|
-| Claude | `claude-sonnet-4-20250514` |
+| Claude | `claude-sonnet-4-6` |
 | ChatGPT | `gpt-4o` |
 | Gemini | `gemini-2.5-flash` |
 
@@ -138,6 +139,8 @@ The AI models used by this app change over time. If a model stops working or pro
 2. Raise `max_output_tokens` to 4000
 
 If you upgrade to a newer Gemini model and see truncated responses again, check whether it is a thinking model and apply the same fix.
+
+**`pypdf` must be installed via Windows pip on Windows.**  The `pypdf` package is used for PDF text extraction and is listed in `requirements.txt`. On Windows, install it with the standard `pip install -r requirements.txt` command in a Windows terminal — not from WSL, which uses a separate Python environment that the app does not use. If you install it from WSL, the app will not find it. The import is lazy (loaded only when a PDF is actually attached), so a missing `pypdf` only causes an error if a PDF attachment is used.
 
 **`google-generativeai` is deprecated.** The original `google-generativeai` package has been retired. This app uses the replacement `google-genai` package (`from google import genai`). Do not revert to the old package.
 

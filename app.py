@@ -1,5 +1,7 @@
 import os
+import io
 import json
+import base64
 import signal
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -25,12 +27,37 @@ os.makedirs(DISCUSSIONS_DIR, exist_ok=True)
 
 MAX_TOPIC_LENGTH = 2000
 API_TIMEOUT = 60  # seconds per model call
+MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
+ALLOWED_MIME_TYPES = {"image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf"}
 
 LENGTH_INSTRUCTIONS = {
     "concise": "\n\nKeep your response concise — 2 to 3 short paragraphs maximum.",
     "standard": "",
     "detailed": "\n\nBe thorough and detailed in your response.",
 }
+
+
+def extract_pdf_text(base64_data):
+    from pypdf import PdfReader
+    pdf_bytes = base64.b64decode(base64_data)
+    reader = PdfReader(io.BytesIO(pdf_bytes))
+    return "\n".join(page.extract_text() or "" for page in reader.pages)
+
+
+def validate_attachment(attachment):
+    if not attachment:
+        return None, None
+    mime = attachment.get("mime_type", "")
+    data = attachment.get("data", "")
+    if mime not in ALLOWED_MIME_TYPES:
+        return None, f"Unsupported file type: {mime}"
+    try:
+        raw = base64.b64decode(data)
+    except Exception:
+        return None, "Invalid attachment data"
+    if len(raw) > MAX_ATTACHMENT_BYTES:
+        return None, "Attachment too large (max 20MB)"
+    return {"mime_type": mime, "data": data}, None
 
 
 def format_history(history):
@@ -74,13 +101,26 @@ def build_summary_prompt(topic, history):
     )
 
 
-def call_claude(prompt):
+def call_claude(prompt, attachment=None):
     try:
+        content = []
+        if attachment:
+            if attachment["mime_type"] == "application/pdf":
+                content.append({
+                    "type": "document",
+                    "source": {"type": "base64", "media_type": "application/pdf", "data": attachment["data"]},
+                })
+            else:
+                content.append({
+                    "type": "image",
+                    "source": {"type": "base64", "media_type": attachment["mime_type"], "data": attachment["data"]},
+                })
+        content.append({"type": "text", "text": prompt})
         response = anthropic_client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6",
             max_tokens=1000,
             timeout=API_TIMEOUT,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[{"role": "user", "content": content}],
         )
         return response.content[0].text
     except Exception as e:
@@ -88,13 +128,24 @@ def call_claude(prompt):
         raise
 
 
-def call_chatgpt(prompt):
+def call_chatgpt(prompt, attachment=None):
     try:
+        if attachment:
+            if attachment["mime_type"] == "application/pdf":
+                pdf_text = extract_pdf_text(attachment["data"])
+                msg_content = f"[Attached PDF content]\n{pdf_text}\n\n{prompt}"
+            else:
+                msg_content = [
+                    {"type": "image_url", "image_url": {"url": f"data:{attachment['mime_type']};base64,{attachment['data']}"}},
+                    {"type": "text", "text": prompt},
+                ]
+        else:
+            msg_content = prompt
         response = openai_client.chat.completions.create(
             model="gpt-4o",
             max_tokens=1000,
             timeout=API_TIMEOUT,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[{"role": "user", "content": msg_content}],
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -102,11 +153,23 @@ def call_chatgpt(prompt):
         raise
 
 
-def call_gemini(prompt):
+def call_gemini(prompt, attachment=None):
     try:
+        if attachment:
+            contents = [
+                genai_types.Part(
+                    inline_data=genai_types.Blob(
+                        mime_type=attachment["mime_type"],
+                        data=base64.b64decode(attachment["data"]),
+                    )
+                ),
+                genai_types.Part(text=prompt),
+            ]
+        else:
+            contents = prompt
         response = gemini_client.models.generate_content(
             model="gemini-2.5-flash",
-            contents=prompt,
+            contents=contents,
             config=genai_types.GenerateContentConfig(
                 max_output_tokens=4000,
                 thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
@@ -118,12 +181,12 @@ def call_gemini(prompt):
         raise
 
 
-def _call_models_parallel(models, prompts_by_key, round_num):
+def _call_models_parallel(models, prompts_by_key, round_num, attachment=None):
     """Call models concurrently. prompts_by_key maps model_key -> prompt."""
     results = {}
     with ThreadPoolExecutor(max_workers=len(models)) as executor:
         futures = {
-            executor.submit(MODEL_DISPATCH[model_key][1], prompts_by_key[model_key]): model_key
+            executor.submit(MODEL_DISPATCH[model_key][1], prompts_by_key[model_key], attachment): model_key
             for model_key in models
         }
         for future in as_completed(futures):
@@ -143,13 +206,13 @@ MODEL_DISPATCH = {
 }
 
 
-def run_discussion(topic, rounds, models, response_length="standard"):
+def run_discussion(topic, rounds, models, response_length="standard", attachment=None):
     history = []
     length_instr = LENGTH_INSTRUCTIONS.get(response_length, "")
 
-    # Round 0: all models called in parallel (independent prompts)
+    # Round 0: all models called in parallel (independent prompts), attachment included here only
     initial_prompt = build_initial_prompt(topic) + length_instr
-    results = _call_models_parallel(models, {m: initial_prompt for m in models}, round_num=0)
+    results = _call_models_parallel(models, {m: initial_prompt for m in models}, round_num=0, attachment=attachment)
     for model_key in models:
         history.append(results[model_key])
 
@@ -200,16 +263,16 @@ def build_followup_round_prompt(topic, original_history, prior_followups, questi
     )
 
 
-def run_followup(topic, original_history, prior_followups, question, rounds, models, response_length="standard"):
+def run_followup(topic, original_history, prior_followups, question, rounds, models, response_length="standard", attachment=None):
     followup_history = []
     length_instr = LENGTH_INSTRUCTIONS.get(response_length, "")
 
-    # Round 0: all models called in parallel
+    # Round 0: all models called in parallel, attachment included here only
     prompts = {
         m: build_followup_initial_prompt(topic, original_history, prior_followups, question, MODEL_DISPATCH[m][0]) + length_instr
         for m in models
     }
-    results = _call_models_parallel(models, prompts, round_num=0)
+    results = _call_models_parallel(models, prompts, round_num=0, attachment=attachment)
     for model_key in models:
         followup_history.append(results[model_key])
 
@@ -267,9 +330,13 @@ def followup():
     if not valid_models:
         return jsonify({"error": "At least one valid model must be selected"}), 400
 
+    attachment, att_err = validate_attachment(data.get("attachment"))
+    if att_err:
+        return jsonify({"error": att_err}), 400
+
     response_length = data.get("response_length", "standard")
     followup_history, summary = run_followup(
-        topic, original_history, prior_followups, question, rounds, valid_models, response_length
+        topic, original_history, prior_followups, question, rounds, valid_models, response_length, attachment
     )
 
     return jsonify({
@@ -305,8 +372,12 @@ def discuss():
     if not valid_models:
         return jsonify({"error": "At least one valid model must be selected"}), 400
 
+    attachment, att_err = validate_attachment(data.get("attachment"))
+    if att_err:
+        return jsonify({"error": att_err}), 400
+
     response_length = data.get("response_length", "standard")
-    discussion, summary = run_discussion(topic, rounds, valid_models, response_length)
+    discussion, summary = run_discussion(topic, rounds, valid_models, response_length, attachment)
     return jsonify({
         "discussion": discussion,
         "summary": summary,

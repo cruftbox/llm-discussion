@@ -16,6 +16,15 @@
     <div class="input-panel">
       <textarea id="topicInput" placeholder="Enter a topic or question..."></textarea>
 
+      <div class="attachment-row">
+        <input type="file" id="attachmentInput" accept="image/png,image/jpeg,image/gif,image/webp,.pdf" style="display:none">
+        <button type="button" id="attachBtn">Attach image or PDF</button>
+        <div class="attachment-chip" id="attachmentChip" style="display:none">
+          <span id="attachmentName"></span>
+          <button type="button" class="clear-attach-btn" id="clearAttachBtn">×</button>
+        </div>
+      </div>
+
       <div class="controls">
         <div class="control-group">
           <label for="roundsSelect">Rounds:</label>
@@ -69,6 +78,16 @@
     <div class="followup-panel" id="followupPanel" style="display:none">
       <h3>Ask a Follow-up</h3>
       <textarea id="followupInput" placeholder="Ask a follow-up question..."></textarea>
+
+      <div class="attachment-row">
+        <input type="file" id="followupAttachmentInput" accept="image/png,image/jpeg,image/gif,image/webp,.pdf" style="display:none">
+        <button type="button" id="followupAttachBtn">Attach image or PDF</button>
+        <div class="attachment-chip" id="followupAttachmentChip" style="display:none">
+          <span id="followupAttachmentName"></span>
+          <button type="button" class="clear-attach-btn" id="followupClearAttachBtn">×</button>
+        </div>
+      </div>
+
       <div class="buttons" style="margin-top:0.75rem">
         <button id="followupBtn">Ask Follow-up</button>
       </div>
@@ -95,6 +114,8 @@
   <script>
     let currentDiscussion = null;
     let elapsedInterval = null;
+    let attachmentData = null;
+    let followupAttachmentData = null;
 
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
@@ -118,6 +139,54 @@
     const discussionActions = document.getElementById('discussionActions');
     const copyAllBtn = document.getElementById('copyAllBtn');
     const saveAllBtn = document.getElementById('saveAllBtn');
+
+    const attachmentInput = document.getElementById('attachmentInput');
+    const attachBtn = document.getElementById('attachBtn');
+    const attachmentChip = document.getElementById('attachmentChip');
+    const attachmentName = document.getElementById('attachmentName');
+    const clearAttachBtn = document.getElementById('clearAttachBtn');
+    const followupAttachmentInput = document.getElementById('followupAttachmentInput');
+    const followupAttachBtn = document.getElementById('followupAttachBtn');
+    const followupAttachmentChip = document.getElementById('followupAttachmentChip');
+    const followupAttachmentName = document.getElementById('followupAttachmentName');
+    const followupClearAttachBtn = document.getElementById('followupClearAttachBtn');
+
+    function readFileAsAttachment(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve({ mime_type: file.type, data: e.target.result.split(',')[1], name: file.name });
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    attachBtn.addEventListener('click', () => attachmentInput.click());
+    attachmentInput.addEventListener('change', async () => {
+      const file = attachmentInput.files[0];
+      if (!file) return;
+      attachmentData = await readFileAsAttachment(file);
+      attachmentName.textContent = file.name;
+      attachmentChip.style.display = '';
+    });
+    clearAttachBtn.addEventListener('click', () => {
+      attachmentData = null;
+      attachmentInput.value = '';
+      attachmentChip.style.display = 'none';
+    });
+
+    followupAttachBtn.addEventListener('click', () => followupAttachmentInput.click());
+    followupAttachmentInput.addEventListener('change', async () => {
+      const file = followupAttachmentInput.files[0];
+      if (!file) return;
+      followupAttachmentData = await readFileAsAttachment(file);
+      followupAttachmentName.textContent = file.name;
+      followupAttachmentChip.style.display = '';
+    });
+    followupClearAttachBtn.addEventListener('click', () => {
+      followupAttachmentData = null;
+      followupAttachmentInput.value = '';
+      followupAttachmentChip.style.display = 'none';
+    });
 
     copyAllBtn.addEventListener('click', () => {
       copyToClipboard(buildThreadText(), copyAllBtn);
@@ -268,7 +337,7 @@
         const res = await fetch('/discuss', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ topic, rounds, models, response_length: lengthSelect.value }),
+          body: JSON.stringify({ topic, rounds, models, response_length: lengthSelect.value, attachment: attachmentData }),
         });
 
         const data = await res.json();
@@ -381,6 +450,7 @@
             models: currentDiscussion.models,
             rounds,
             response_length: currentDiscussion.response_length || 'standard',
+            attachment: followupAttachmentData,
           }),
         });
 
@@ -398,6 +468,9 @@
           currentDiscussion.followups.push({ question, discussion: data.discussion });
           currentDiscussion.summary = data.summary;
           followupInput.value = '';
+          followupAttachmentData = null;
+          followupAttachmentInput.value = '';
+          followupAttachmentChip.style.display = 'none';
         }
       } catch (err) {
         showError(`Network error: ${err.message}`);
