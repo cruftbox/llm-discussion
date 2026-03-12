@@ -37,6 +37,13 @@ header p {
   border-radius: 12px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.input-panel.drag-over,
+.followup-panel.drag-over {
+  border-color: #6366f1;
+  background: #1e2440;
 }
 
 textarea {
@@ -267,6 +274,7 @@ footer {
   border-radius: 12px;
   padding: 1.25rem;
   margin-bottom: 1.5rem;
+  transition: border-color 0.15s, background 0.15s;
 }
 
 .followup-panel h3 {

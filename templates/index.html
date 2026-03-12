@@ -13,7 +13,7 @@
       <p>Pose a question. Let Claude, ChatGPT, and Gemini discuss it.</p>
     </header>
 
-    <div class="input-panel">
+    <div class="input-panel" id="inputPanel">
       <textarea id="topicInput" placeholder="Enter a topic or question..."></textarea>
 
       <div class="attachment-row">
@@ -236,6 +236,43 @@
       followupAttachmentData = null;
       followupAttachmentInput.value = '';
       followupAttachmentChip.style.display = 'none';
+    });
+
+    const ACCEPTED_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'application/pdf']);
+
+    function setupDropZone(el, onFile) {
+      let counter = 0;
+      el.addEventListener('dragenter', (e) => {
+        if (!e.dataTransfer.types.includes('Files')) return;
+        e.preventDefault();
+        if (++counter === 1) el.classList.add('drag-over');
+      });
+      el.addEventListener('dragleave', () => {
+        if (--counter === 0) el.classList.remove('drag-over');
+      });
+      el.addEventListener('dragover', (e) => {
+        if (e.dataTransfer.types.includes('Files')) e.preventDefault();
+      });
+      el.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        counter = 0;
+        el.classList.remove('drag-over');
+        const file = e.dataTransfer.files[0];
+        if (!file || !ACCEPTED_TYPES.has(file.type)) return;
+        await onFile(file);
+      });
+    }
+
+    setupDropZone(document.getElementById('inputPanel'), async (file) => {
+      attachmentData = await readFileAsAttachment(file);
+      attachmentName.textContent = attachmentData.name;
+      attachmentChip.style.display = '';
+    });
+
+    setupDropZone(followupPanel, async (file) => {
+      followupAttachmentData = await readFileAsAttachment(file);
+      followupAttachmentName.textContent = followupAttachmentData.name;
+      followupAttachmentChip.style.display = '';
     });
 
     copyAllBtn.addEventListener('click', () => {

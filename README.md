@@ -77,7 +77,7 @@ Then open `http://localhost:5000` in your browser.
 ## Usage
 
 1. Type a topic or question in the text box
-2. Optionally click **Attach image or PDF** to include a file with your topic. All three models support images (PNG, JPG, GIF, WEBP) and PDFs natively, except ChatGPT which does not accept PDFs directly — the app extracts the PDF text and prepends it to the prompt automatically
+2. Optionally attach an image (PNG, JPG, GIF, WEBP) or PDF to your topic — click **Attach image or PDF** or drag and drop a file onto the input panel. Images are automatically resized to fit within API limits before sending. All three models support images natively; PDFs are supported natively by Claude and Gemini. For ChatGPT, PDF text is extracted locally and prepended to the prompt
 3. Select the number of discussion rounds (1–3)
 4. Select a **Response length**:
    - **Concise** — 2 to 3 short paragraphs per model
@@ -87,7 +87,7 @@ Then open `http://localhost:5000` in your browser.
 6. Click **Start Discussion**
 7. Wait for all responses (typically 30–90 seconds)
 8. A **Summary & Consensus** card will appear at the end with key takeaways
-9. Optionally type a follow-up question and click **Ask Follow-up** to continue the discussion — the models will respond with full context of the prior conversation. You can also attach a new image or PDF to a follow-up. You can ask multiple follow-ups; each gets fresh round numbering and the summary updates each time
+9. Optionally type a follow-up question and click **Ask Follow-up** to continue the discussion — the models will respond with full context of the prior conversation. You can also attach a new image or PDF to a follow-up (click the button or drag and drop onto the follow-up panel). You can ask multiple follow-ups; each gets fresh round numbering and the summary updates each time
 10. Click **Save Discussion** to store the results locally (follow-ups are included)
 
 ---
