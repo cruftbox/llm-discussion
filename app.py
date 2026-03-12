@@ -27,7 +27,6 @@ os.makedirs(DISCUSSIONS_DIR, exist_ok=True)
 
 MAX_TOPIC_LENGTH = 2000
 API_TIMEOUT = 60  # seconds per model call
-MAX_IMAGE_BYTES = 5 * 1024 * 1024   # Claude's image limit
 MAX_PDF_BYTES = 20 * 1024 * 1024
 ALLOWED_MIME_TYPES = {"image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf"}
 
@@ -56,10 +55,8 @@ def validate_attachment(attachment):
         raw = base64.b64decode(data)
     except Exception:
         return None, "Invalid attachment data"
-    max_bytes = MAX_PDF_BYTES if mime == "application/pdf" else MAX_IMAGE_BYTES
-    limit_str = "20MB" if mime == "application/pdf" else "5MB"
-    if len(raw) > max_bytes:
-        return None, f"Attachment too large (max {limit_str} for {'PDFs' if mime == 'application/pdf' else 'images'})"
+    if mime == "application/pdf" and len(raw) > MAX_PDF_BYTES:
+        return None, "PDF too large (max 20MB)"
     return {"mime_type": mime, "data": data}, None
 
 

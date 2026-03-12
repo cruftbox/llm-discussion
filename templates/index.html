@@ -152,11 +152,61 @@
     const followupClearAttachBtn = document.getElementById('followupClearAttachBtn');
 
     function readFileAsAttachment(file) {
+      if (file.type.startsWith('image/')) {
+        return resizeImage(file);
+      }
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => resolve({ mime_type: file.type, data: e.target.result.split(',')[1], name: file.name });
         reader.onerror = reject;
         reader.readAsDataURL(file);
+      });
+    }
+
+    function resizeImage(file) {
+      const MAX_DIMENSION = 2048;
+      const MAX_BYTES = 4.5 * 1024 * 1024;
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          let { width, height } = img;
+          if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+            if (width >= height) {
+              height = Math.round(height * MAX_DIMENSION / width);
+              width = MAX_DIMENSION;
+            } else {
+              width = Math.round(width * MAX_DIMENSION / height);
+              height = MAX_DIMENSION;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+          // Preserve original format; GIF falls back to PNG (canvas can't output GIF)
+          const outMime = file.type === 'image/gif' ? 'image/png' : file.type;
+          let dataUrl = canvas.toDataURL(outMime);
+          let mimeUsed = outMime;
+          let name = file.name;
+
+          // If still too large after resizing, fall back to JPEG compression
+          if (dataUrl.length * 0.75 > MAX_BYTES) {
+            let quality = 0.92;
+            do {
+              dataUrl = canvas.toDataURL('image/jpeg', quality);
+              quality = Math.round((quality - 0.1) * 100) / 100;
+            } while (dataUrl.length * 0.75 > MAX_BYTES && quality >= 0.1);
+            mimeUsed = 'image/jpeg';
+            name = file.name.replace(/\.[^.]+$/, '.jpg');
+          }
+
+          resolve({ mime_type: mimeUsed, data: dataUrl.split(',')[1], name });
+        };
+        img.onerror = reject;
+        img.src = url;
       });
     }
 
