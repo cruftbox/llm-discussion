@@ -89,6 +89,36 @@
         </div>
       </div>
 
+      <div class="controls" style="margin-top:0.75rem">
+        <div class="control-group">
+          <label for="followupRoundsSelect">Rounds:</label>
+          <select id="followupRoundsSelect">
+            <option value="1">1</option>
+            <option value="2" selected>2</option>
+            <option value="3">3</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label for="followupLengthSelect">Response length:</label>
+          <select id="followupLengthSelect">
+            <option value="concise">Concise</option>
+            <option value="standard" selected>Standard</option>
+            <option value="detailed">Detailed</option>
+          </select>
+        </div>
+        <div class="model-toggles" id="followupModelToggles">
+          <label class="model-toggle">
+            <input type="checkbox" value="claude" checked /> Claude
+          </label>
+          <label class="model-toggle">
+            <input type="checkbox" value="chatgpt" checked /> ChatGPT
+          </label>
+          <label class="model-toggle">
+            <input type="checkbox" value="gemini" checked /> Gemini
+          </label>
+        </div>
+      </div>
+
       <div class="buttons" style="margin-top:0.75rem">
         <button id="followupBtn">Ask Follow-up</button>
       </div>
@@ -157,6 +187,20 @@
     const followupAttachmentChip = document.getElementById('followupAttachmentChip');
     const followupAttachmentName = document.getElementById('followupAttachmentName');
     const followupClearAttachBtn = document.getElementById('followupClearAttachBtn');
+    const followupRoundsSelect = document.getElementById('followupRoundsSelect');
+    const followupLengthSelect = document.getElementById('followupLengthSelect');
+
+    function getFollowupSelectedModels() {
+      return Array.from(document.querySelectorAll('#followupModelToggles input:checked')).map(cb => cb.value);
+    }
+
+    function syncFollowupControls(models, responseLength) {
+      followupRoundsSelect.value = roundsSelect.value;
+      followupLengthSelect.value = responseLength || 'standard';
+      document.querySelectorAll('#followupModelToggles input').forEach(cb => {
+        cb.checked = models.includes(cb.value);
+      });
+    }
 
     function readFileAsAttachment(file) {
       if (file.type.startsWith('image/')) {
@@ -470,6 +514,7 @@
           saveAllBtn.textContent = 'Save Discussion';
           followupPanel.style.display = '';
           newDiscussionPanel.style.display = '';
+          syncFollowupControls(models, lengthSelect.value);
         }
       } catch (err) {
         showError(`Network error: ${err.message}`);
@@ -547,7 +592,6 @@
       const question = followupInput.value.trim();
       if (!question || !currentDiscussion) return;
 
-      const rounds = parseInt(roundsSelect.value, 10);
       followupBtn.disabled = true;
       followupStatusText.textContent = `Running follow-up ${currentDiscussion.followups.length + 1}...`;
       followupElapsedText.textContent = '0s';
@@ -568,9 +612,9 @@
             topic: currentDiscussion.topic,
             discussion: currentDiscussion.discussion,
             followups: currentDiscussion.followups,
-            models: currentDiscussion.models,
-            rounds,
-            response_length: currentDiscussion.response_length || 'standard',
+            models: getFollowupSelectedModels(),
+            rounds: parseInt(followupRoundsSelect.value, 10),
+            response_length: followupLengthSelect.value,
             attachment: followupAttachmentData,
           }),
         });
@@ -609,6 +653,7 @@
         discussionArea.innerHTML = '';
         currentDiscussion = { ...data, followups: data.followups || [], models: data.models || [] };
         followupPanel.style.display = data.models?.length ? '' : 'none';
+        if (data.models?.length) syncFollowupControls(data.models, data.response_length);
         newDiscussionPanel.style.display = '';
         followupInput.value = '';
         topicInput.value = data.topic || '';
