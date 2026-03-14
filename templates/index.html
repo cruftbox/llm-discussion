@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LLM Discussion</title>
   <link rel="stylesheet" href="/static/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
   <div class="container">
@@ -366,7 +367,7 @@
           ${errorBadge}
           <button class="copy-btn" title="Copy response">${ICON_COPY}</button>
         </div>
-        <div class="card-text">${escapeHtml(entry.text)}</div>
+        <div class="card-text markdown">${marked.parse(entry.text)}</div>
       `;
 
       card.querySelector('.copy-btn').addEventListener('click', () => {
@@ -401,16 +402,19 @@
         }
       }
 
+      if (currentDiscussion.summary) {
+        lines.push('=== Summary & Consensus ===', '', currentDiscussion.summary, '');
+      }
+
       for (let i = 0; i < (currentDiscussion.followups || []).length; i++) {
         const fu = currentDiscussion.followups[i];
         lines.push(`--- Follow-up ${i + 1}: ${fu.question} ---`, '');
         for (const entry of fu.discussion) {
           lines.push(`[${entry.model} - Round ${entry.round}]${entry.error ? ' [ERROR]' : ''}`, entry.text, '');
         }
-      }
-
-      if (currentDiscussion.summary) {
-        lines.push('=== Summary & Consensus ===', '', currentDiscussion.summary);
+        if (fu.summary) {
+          lines.push(`=== Follow-up ${i + 1} Summary ===`, '', fu.summary, '');
+        }
       }
       return lines.join('\n');
     }
@@ -511,17 +515,14 @@
     }
 
     function renderSummary(text) {
-      const existing = document.getElementById('summaryCard');
-      if (existing) existing.remove();
       const card = document.createElement('div');
-      card.id = 'summaryCard';
       card.className = 'card summary-card';
       card.innerHTML = `
         <div class="card-header">
           <span class="badge badge-summary">Summary &amp; Consensus</span>
           <button class="copy-btn" title="Copy summary">${ICON_COPY}</button>
         </div>
-        <div class="card-text">${escapeHtml(text)}</div>
+        <div class="card-text markdown">${marked.parse(text)}</div>
         <div class="summary-footer">
           <button class="summary-save-btn">Save Discussion</button>
         </div>
@@ -585,8 +586,7 @@
           if (data.summary) renderSummary(data.summary);
           discussionActions.style.display = '';
           saveAllBtn.textContent = 'Save Discussion';
-          currentDiscussion.followups.push({ question, discussion: data.discussion });
-          currentDiscussion.summary = data.summary;
+          currentDiscussion.followups.push({ question, discussion: data.discussion, summary: data.summary });
           followupInput.value = '';
           followupAttachmentData = null;
           followupAttachmentInput.value = '';
@@ -613,11 +613,12 @@
         followupInput.value = '';
         topicInput.value = data.topic || '';
         data.discussion.forEach(renderCard);
+        if (data.summary) renderSummary(data.summary);
         (data.followups || []).forEach((fu, i) => {
           renderFollowupSeparator(fu.question, i + 1);
           fu.discussion.forEach(renderCard);
+          if (fu.summary) renderSummary(fu.summary);
         });
-        if (data.summary) renderSummary(data.summary);
         discussionActions.style.display = '';
         saveAllBtn.textContent = 'Save Discussion';
         window.scrollTo({ top: 0, behavior: 'smooth' });
