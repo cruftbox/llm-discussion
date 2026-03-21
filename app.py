@@ -213,6 +213,22 @@ MODEL_DISPATCH = {
     "gemini": ("Gemini", call_gemini),
 }
 
+# Preferred order for summary generation
+SUMMARY_MODEL_ORDER = ["claude", "chatgpt", "gemini"]
+
+
+def generate_summary(prompt, models):
+    """Try each model in preferred order until one succeeds."""
+    ordered = [m for m in SUMMARY_MODEL_ORDER if m in models] + [m for m in models if m not in SUMMARY_MODEL_ORDER]
+    last_err = None
+    for model_key in ordered:
+        try:
+            return MODEL_DISPATCH[model_key][1](prompt)
+        except Exception as e:
+            logging.error("Summary generation error (%s): %s", model_key, e)
+            last_err = e
+    return f"[Summary generation failed: {last_err}]"
+
 
 def run_discussion(topic, rounds, models, response_length="standard", attachments=None):
     history = []
@@ -235,14 +251,7 @@ def run_discussion(topic, rounds, models, response_length="standard", attachment
         for model_key in models:
             history.append(results[model_key])
 
-    # Summary: use Claude if available, otherwise first selected model
-    summary_fn = call_claude if "claude" in models else MODEL_DISPATCH[models[0]][1]
-    try:
-        summary_text = summary_fn(build_summary_prompt(topic, history))
-    except Exception as e:
-        logging.error("Summary generation error: %s", e)
-        summary_text = f"[Summary generation failed: {e}]"
-
+    summary_text = generate_summary(build_summary_prompt(topic, history), models)
     return history, summary_text
 
 
@@ -303,13 +312,7 @@ def run_followup(topic, original_history, prior_followups, question, rounds, mod
 
     all_questions = [fu["question"] for fu in prior_followups] + [question]
     summary_topic = f"{topic} (follow-ups: {'; '.join(all_questions)})"
-    summary_fn = call_claude if "claude" in models else MODEL_DISPATCH[models[0]][1]
-    try:
-        summary_text = summary_fn(build_summary_prompt(summary_topic, all_history))
-    except Exception as e:
-        logging.error("Summary generation error: %s", e)
-        summary_text = f"[Summary generation failed: {e}]"
-
+    summary_text = generate_summary(build_summary_prompt(summary_topic, all_history), models)
     return followup_history, summary_text
 
 
