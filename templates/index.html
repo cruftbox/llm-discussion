@@ -20,13 +20,9 @@
     <div class="input-panel" id="inputPanel">
       <textarea id="topicInput" placeholder="Enter a topic or question..."></textarea>
 
-      <div class="attachment-row">
-        <input type="file" id="attachmentInput" accept="image/png,image/jpeg,image/gif,image/webp,.pdf" style="display:none">
+      <div class="attachment-row" id="attachmentRow">
+        <input type="file" id="attachmentInput" accept="image/png,image/jpeg,image/gif,image/webp,.pdf" multiple style="display:none">
         <button type="button" id="attachBtn">Attach image or PDF</button>
-        <div class="attachment-chip" id="attachmentChip" style="display:none">
-          <span id="attachmentName"></span>
-          <button type="button" class="clear-attach-btn" id="clearAttachBtn">×</button>
-        </div>
       </div>
 
       <div class="controls">
@@ -83,13 +79,9 @@
       <h3>Ask a Follow-up</h3>
       <textarea id="followupInput" placeholder="Ask a follow-up question..."></textarea>
 
-      <div class="attachment-row">
-        <input type="file" id="followupAttachmentInput" accept="image/png,image/jpeg,image/gif,image/webp,.pdf" style="display:none">
+      <div class="attachment-row" id="followupAttachmentRow">
+        <input type="file" id="followupAttachmentInput" accept="image/png,image/jpeg,image/gif,image/webp,.pdf" multiple style="display:none">
         <button type="button" id="followupAttachBtn">Attach image or PDF</button>
-        <div class="attachment-chip" id="followupAttachmentChip" style="display:none">
-          <span id="followupAttachmentName"></span>
-          <button type="button" class="clear-attach-btn" id="followupClearAttachBtn">×</button>
-        </div>
       </div>
 
       <div class="controls" style="margin-top:0.75rem">
@@ -152,8 +144,8 @@
   <script>
     let currentDiscussion = null;
     let elapsedInterval = null;
-    let attachmentData = null;
-    let followupAttachmentData = null;
+    let attachmentData = [];
+    let followupAttachmentData = [];
 
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
@@ -182,14 +174,10 @@
 
     const attachmentInput = document.getElementById('attachmentInput');
     const attachBtn = document.getElementById('attachBtn');
-    const attachmentChip = document.getElementById('attachmentChip');
-    const attachmentName = document.getElementById('attachmentName');
-    const clearAttachBtn = document.getElementById('clearAttachBtn');
+    const attachmentRow = document.getElementById('attachmentRow');
     const followupAttachmentInput = document.getElementById('followupAttachmentInput');
     const followupAttachBtn = document.getElementById('followupAttachBtn');
-    const followupAttachmentChip = document.getElementById('followupAttachmentChip');
-    const followupAttachmentName = document.getElementById('followupAttachmentName');
-    const followupClearAttachBtn = document.getElementById('followupClearAttachBtn');
+    const followupAttachmentRow = document.getElementById('followupAttachmentRow');
     const followupRoundsSelect = document.getElementById('followupRoundsSelect');
     const followupLengthSelect = document.getElementById('followupLengthSelect');
 
@@ -264,37 +252,50 @@
       });
     }
 
+    const MAX_ATTACHMENTS_UI = 5;
+
+    function renderChips(dataArr, rowEl, inputEl) {
+      rowEl.querySelectorAll('.attachment-chip').forEach(c => c.remove());
+      dataArr.forEach((att, i) => {
+        const chip = document.createElement('div');
+        chip.className = 'attachment-chip';
+        chip.innerHTML = `<span>${att.name}</span><button type="button" class="clear-attach-btn" aria-label="Remove">×</button>`;
+        chip.querySelector('.clear-attach-btn').addEventListener('click', () => {
+          dataArr.splice(i, 1);
+          inputEl.value = '';
+          renderChips(dataArr, rowEl, inputEl);
+        });
+        rowEl.appendChild(chip);
+      });
+    }
+
+    async function addFiles(files, dataArr, rowEl, inputEl) {
+      for (const file of files) {
+        if (dataArr.length >= MAX_ATTACHMENTS_UI) {
+          alert(`Maximum ${MAX_ATTACHMENTS_UI} attachments allowed.`);
+          break;
+        }
+        if (!ACCEPTED_TYPES.has(file.type)) continue;
+        const att = await readFileAsAttachment(file);
+        dataArr.push(att);
+      }
+      inputEl.value = '';
+      renderChips(dataArr, rowEl, inputEl);
+    }
+
     attachBtn.addEventListener('click', () => attachmentInput.click());
     attachmentInput.addEventListener('change', async () => {
-      const file = attachmentInput.files[0];
-      if (!file) return;
-      attachmentData = await readFileAsAttachment(file);
-      attachmentName.textContent = file.name;
-      attachmentChip.style.display = '';
-    });
-    clearAttachBtn.addEventListener('click', () => {
-      attachmentData = null;
-      attachmentInput.value = '';
-      attachmentChip.style.display = 'none';
+      await addFiles(Array.from(attachmentInput.files), attachmentData, attachmentRow, attachmentInput);
     });
 
     followupAttachBtn.addEventListener('click', () => followupAttachmentInput.click());
     followupAttachmentInput.addEventListener('change', async () => {
-      const file = followupAttachmentInput.files[0];
-      if (!file) return;
-      followupAttachmentData = await readFileAsAttachment(file);
-      followupAttachmentName.textContent = file.name;
-      followupAttachmentChip.style.display = '';
-    });
-    followupClearAttachBtn.addEventListener('click', () => {
-      followupAttachmentData = null;
-      followupAttachmentInput.value = '';
-      followupAttachmentChip.style.display = 'none';
+      await addFiles(Array.from(followupAttachmentInput.files), followupAttachmentData, followupAttachmentRow, followupAttachmentInput);
     });
 
     const ACCEPTED_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'application/pdf']);
 
-    function setupDropZone(el, onFile) {
+    function setupDropZone(el, onFiles) {
       let counter = 0;
       el.addEventListener('dragenter', (e) => {
         if (!e.dataTransfer.types.includes('Files')) return;
@@ -311,22 +312,18 @@
         e.preventDefault();
         counter = 0;
         el.classList.remove('drag-over');
-        const file = e.dataTransfer.files[0];
-        if (!file || !ACCEPTED_TYPES.has(file.type)) return;
-        await onFile(file);
+        const files = Array.from(e.dataTransfer.files).filter(f => ACCEPTED_TYPES.has(f.type));
+        if (files.length === 0) return;
+        await onFiles(files);
       });
     }
 
-    setupDropZone(document.getElementById('inputPanel'), async (file) => {
-      attachmentData = await readFileAsAttachment(file);
-      attachmentName.textContent = attachmentData.name;
-      attachmentChip.style.display = '';
+    setupDropZone(document.getElementById('inputPanel'), async (files) => {
+      await addFiles(files, attachmentData, attachmentRow, attachmentInput);
     });
 
-    setupDropZone(followupPanel, async (file) => {
-      followupAttachmentData = await readFileAsAttachment(file);
-      followupAttachmentName.textContent = followupAttachmentData.name;
-      followupAttachmentChip.style.display = '';
+    setupDropZone(followupPanel, async (files) => {
+      await addFiles(files, followupAttachmentData, followupAttachmentRow, followupAttachmentInput);
     });
 
     copyAllBtn.addEventListener('click', () => {
@@ -364,13 +361,13 @@
       followupPanel.style.display = 'none';
       newDiscussionPanel.style.display = 'none';
       topicInput.value = '';
-      attachmentData = null;
+      attachmentData = [];
       attachmentInput.value = '';
-      attachmentChip.style.display = 'none';
+      renderChips(attachmentData, attachmentRow, attachmentInput);
       followupInput.value = '';
-      followupAttachmentData = null;
+      followupAttachmentData = [];
       followupAttachmentInput.value = '';
-      followupAttachmentChip.style.display = 'none';
+      renderChips(followupAttachmentData, followupAttachmentRow, followupAttachmentInput);
       topicInput.focus();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
@@ -502,7 +499,7 @@
         const res = await fetch('/discuss', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ topic, rounds, models, response_length: lengthSelect.value, attachment: attachmentData }),
+          body: JSON.stringify({ topic, rounds, models, response_length: lengthSelect.value, attachments: attachmentData }),
         });
 
         const data = await res.json();
@@ -618,7 +615,7 @@
             models: getFollowupSelectedModels(),
             rounds: parseInt(followupRoundsSelect.value, 10),
             response_length: followupLengthSelect.value,
-            attachment: followupAttachmentData,
+            attachments: followupAttachmentData,
           }),
         });
 
@@ -635,9 +632,9 @@
           saveAllBtn.textContent = 'Save Discussion';
           currentDiscussion.followups.push({ question, discussion: data.discussion, summary: data.summary });
           followupInput.value = '';
-          followupAttachmentData = null;
+          followupAttachmentData = [];
           followupAttachmentInput.value = '';
-          followupAttachmentChip.style.display = 'none';
+          renderChips(followupAttachmentData, followupAttachmentRow, followupAttachmentInput);
         }
       } catch (err) {
         showError(`Network error: ${err.message}`);
